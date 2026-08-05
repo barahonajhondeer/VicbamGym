@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Abrir VicbamGym en el Navegador",
+            "type": "chrome", 
+            "request": "launch",
+            "url": "http://localhost/DES-L4NA/VicbamGym/",
+            "webRoot": "${workspaceFolder}"
+        }
+    ]
+}
