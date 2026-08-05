@@ -85,6 +85,7 @@ echo $cliente['nombres']." ".$cliente['apellidos'];
 
 <?php
 
+
 }
 
 ?>
@@ -146,11 +147,23 @@ readonly>
 
 </div>
 
+<div class="form-group">
+
+    <label>Valor</label>
+
+    <input
+        type="text"
+        id="valor"
+        name="valor"
+        readonly>
+
+</div>
+
 </div>
 
 <div class="form-group">
 
-<label>Valor</label>
+<label>Valor recibido</label>
 
 <input
 type="number"
@@ -340,6 +353,8 @@ document.getElementById("id_membresia").value=data.id_membresia;
 
 document.getElementById("tipo").value=data.tipo;
 
+document.getElementById("valor").value=data.valor; 
+
 document.getElementById("fecha_inicio").value=data.fecha_inicio;
 
 document.getElementById("fecha_fin").value=data.fecha_fin;
@@ -351,6 +366,8 @@ document.getElementById("estado").value=data.estado;
 document.getElementById("id_membresia").value="";
 
 document.getElementById("tipo").value="";
+
+document.getElementById("valor").value="";
 
 document.getElementById("fecha_inicio").value="";
 

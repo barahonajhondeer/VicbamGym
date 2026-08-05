@@ -34,7 +34,7 @@ if(!isset($_SESSION['usuario'])){
 
         <li><a href="pagos/pagos.php">💲 Pagos</a></li>
 
-        <li><a href="reportes.php">📊 Reportes</a></li>
+        <li><a href="reportes/reportes.php">📊 Reportes</a></li>
 
         <li><a href="usuarios.php">⚙ Usuarios</a></li>
 
@@ -73,6 +73,20 @@ if(!isset($_SESSION['usuario'])){
         <h3>Pagos</h3>
         <p>Gestión de pagos.</p>
     </div>
+</a>
+
+<a href="reportes/reportes.php" class="card-link">
+
+    <div class="card">
+
+        <h2>Reportes</h2>
+
+        <p>
+            Consultar clientes, membresías y pagos.
+        </p>
+
+    </div>
+
 </a>
 
     </div>
