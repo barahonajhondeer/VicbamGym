@@ -1,6 +1,7 @@
 <?php
 
 require_once("config/conexion.php");
+require_once("config/verificar_sesion.php");
 
 /* Actualizar membresías vencidas */
 $sqlActualizar = "UPDATE membresias
@@ -145,6 +146,22 @@ $resultadoProximas = mysqli_query($conexion, $sqlProximas);
         <p>
             Resumen general y accesos principales del sistema VICBAMGYM.
         </p>
+        
+        <p class="usuario-sesion">
+
+Bienvenido:
+
+<strong>
+    <?php echo htmlspecialchars($_SESSION["usuario"]); ?>
+</strong>
+
+| Rol:
+
+<strong>
+    <?php echo htmlspecialchars($_SESSION["rol"]); ?>
+</strong>
+
+</p>
 
     </section>
 

@@ -4,64 +4,69 @@ session_start();
 
 require_once("config/conexion.php");
 
-$usuario = $_POST['usuario'];
-$password = $_POST['password'];
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    header("Location: index.php");
+    exit();
+}
 
-$sql = "SELECT * FROM usuarios
-        WHERE usuario='$usuario'
-        AND password='$password'";
+$usuario = trim($_POST["usuario"] ?? "");
+$password = trim($_POST["password"] ?? "");
 
-$resultado = mysqli_query($conexion, $sql);
+if ($usuario === "" || $password === "") {
 
-if(mysqli_num_rows($resultado) > 0){
+    echo "<script>
+        alert('Ingrese usuario y contraseña.');
+        window.location='index.php';
+    </script>";
 
-    // Guardar el usuario en la sesión
-    $_SESSION['usuario'] = $usuario;
+    exit();
+}
 
-    // Redireccionar al Dashboard
+$sql = "SELECT
+            id_usuario,
+            usuario,
+            password,
+            rol
+        FROM usuarios
+        WHERE usuario = ?
+        LIMIT 1";
+
+$stmt = mysqli_prepare($conexion, $sql);
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "s",
+    $usuario
+);
+
+mysqli_stmt_execute($stmt);
+
+$resultado = mysqli_stmt_get_result($stmt);
+$datosUsuario = mysqli_fetch_assoc($resultado);
+
+if (
+    $datosUsuario &&
+    $password === $datosUsuario["password"]
+) {
+
+    $_SESSION["id_usuario"] =
+        $datosUsuario["id_usuario"];
+
+    $_SESSION["usuario"] =
+        $datosUsuario["usuario"];
+
+    $_SESSION["rol"] =
+        $datosUsuario["rol"];
+
     header("Location: dashboard.php");
     exit();
 
-}else{
-?>
+} else {
 
-<!DOCTYPE html>
-<html>
-
-<head>
-
-    <title>Error</title>
-
-    <link rel="stylesheet" href="assets/css/styles.css">
-
-</head>
-
-<body class="login-body">
-
-<div class="login-container">
-
-    <h1>VICBAMGYM</h1>
-
-    <div class="error">
-
-        Usuario o contraseña incorrectos
-
-    </div>
-
-    <br>
-
-    <a href="index.php">
-
-        <button>Volver</button>
-
-    </a>
-
-</div>
-
-</body>
-
-</html>
-
-<?php
+    echo "<script>
+        alert('Usuario o contraseña incorrectos.');
+        window.location='index.php';
+    </script>";
 }
+
 ?>

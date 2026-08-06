@@ -1632,3 +1632,18 @@ table tr:hover{
 .btn-renovar:hover{
     background:#218838;
 }
+.usuario-sesion{
+
+    margin-top:15px;
+
+    color:#dddddd;
+
+    font-size:16px;
+
+}
+
+.usuario-sesion strong{
+
+    color:#ff0000;
+
+}
