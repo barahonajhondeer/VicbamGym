@@ -181,7 +181,7 @@ $totalIngresos = $datosIngresos['total'] ?? 0;
     <section class="opciones-reportes">
 
         <a
-            href="reporte_clientes.php"
+            href="reporte_cliente.php"
             class="enlace-reporte">
 
             <article class="tarjeta-reporte">

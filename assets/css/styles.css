@@ -834,3 +834,327 @@ table tr:hover{
     }
 
 }
+/* =================================
+   DETALLE DE REPORTES
+================================= */
+
+.reporte-detalle-contenido{
+    width:94%;
+    max-width:1500px;
+    margin:0 auto;
+    padding-top:110px;
+    padding-bottom:50px;
+}
+
+.encabezado-reporte-detalle{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:25px;
+    margin-bottom:30px;
+}
+
+.encabezado-reporte-detalle h1{
+    color:#ff0000;
+    font-size:34px;
+    margin-bottom:8px;
+}
+
+.encabezado-reporte-detalle p{
+    color:#dddddd;
+    font-size:16px;
+}
+
+.acciones-reporte{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+.btn-volver-reporte,
+.btn-pdf{
+    display:inline-block;
+    padding:11px 18px;
+    border-radius:8px;
+    text-decoration:none;
+    color:white;
+    font-weight:bold;
+    transition:.3s;
+}
+
+.btn-volver-reporte{
+    background:#444444;
+}
+
+.btn-pdf{
+    background:#ff0000;
+}
+
+.btn-volver-reporte:hover{
+    background:#666666;
+}
+
+.btn-pdf:hover{
+    background:#c90000;
+    transform:translateY(-2px);
+}
+
+.resumen-reporte-individual{
+    margin-bottom:25px;
+}
+
+.tarjeta-total-reporte{
+    width:280px;
+    background:rgba(25,25,25,.96);
+    border:2px solid #ff0000;
+    border-radius:14px;
+    padding:20px 25px;
+    box-shadow:0 0 15px rgba(255,0,0,.3);
+}
+
+.tarjeta-total-reporte span{
+    display:block;
+    color:#dddddd;
+    margin-bottom:8px;
+}
+
+.tarjeta-total-reporte strong{
+    color:#ff0000;
+    font-size:32px;
+}
+
+.tabla-reporte-container{
+    background:rgba(25,25,25,.96);
+    border:2px solid #ff0000;
+    border-radius:15px;
+    padding:20px;
+    box-shadow:0 0 18px rgba(255,0,0,.3);
+}
+
+.tabla-responsive{
+    width:100%;
+    overflow-x:auto;
+}
+
+.tabla-reporte{
+    width:100%;
+    min-width:1100px;
+    border-collapse:collapse;
+    color:white;
+}
+
+.tabla-reporte thead th{
+    background:#c90000;
+    color:white;
+    padding:14px 12px;
+    text-align:center;
+    white-space:nowrap;
+}
+
+.tabla-reporte tbody td{
+    background:#252525;
+    color:white;
+    padding:12px;
+    border-bottom:1px solid #555555;
+    text-align:center;
+    vertical-align:middle;
+}
+
+.tabla-reporte tbody tr:nth-child(even) td{
+    background:#303030;
+}
+
+.tabla-reporte tbody tr:hover td{
+    background:#4b0000;
+}
+
+.sin-resultados{
+    padding:30px !important;
+    color:#dddddd !important;
+    font-size:17px;
+    text-align:center !important;
+}
+
+@media(max-width:800px){
+
+    .encabezado-reporte-detalle{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
+    .tarjeta-total-reporte{
+        width:100%;
+    }
+
+    .reporte-detalle-contenido{
+        padding-top:140px;
+    }
+
+}
+/* =================================
+   RESUMEN REPORTE DE MEMBRESÍAS
+================================= */
+
+.resumen-membresias-reporte{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:20px;
+    margin-bottom:25px;
+}
+
+.tarjeta-estado-reporte{
+    background:rgba(25,25,25,.96);
+    border-radius:14px;
+    padding:20px 25px;
+    box-shadow:0 0 15px rgba(0,0,0,.4);
+}
+
+.tarjeta-estado-reporte span{
+    display:block;
+    color:#dddddd;
+    margin-bottom:8px;
+}
+
+.tarjeta-estado-reporte strong{
+    font-size:32px;
+}
+
+.tarjeta-estado-reporte.activa{
+    border:2px solid #28a745;
+}
+
+.tarjeta-estado-reporte.activa strong{
+    color:#28a745;
+}
+
+.tarjeta-estado-reporte.vencida{
+    border:2px solid #dc3545;
+}
+
+.tarjeta-estado-reporte.vencida strong{
+    color:#dc3545;
+}
+
+@media(max-width:800px){
+
+    .resumen-membresias-reporte{
+        grid-template-columns:1fr;
+    }
+
+}
+/* =================================
+   REPORTE DE PAGOS
+================================= */
+
+.filtro-pagos-reporte{
+    background:rgba(25,25,25,.96);
+    border:2px solid #ff0000;
+    border-radius:15px;
+    padding:22px;
+    margin-bottom:25px;
+    box-shadow:0 0 15px rgba(255,0,0,.25);
+}
+
+.filtro-pagos-reporte form{
+    display:flex;
+    align-items:flex-end;
+    gap:20px;
+    flex-wrap:wrap;
+}
+
+.campo-filtro{
+    flex:1;
+    min-width:220px;
+}
+
+.campo-filtro label{
+    display:block;
+    color:white;
+    margin-bottom:8px;
+    font-weight:bold;
+}
+
+.campo-filtro input{
+    width:100%;
+}
+
+.acciones-filtro{
+    display:flex;
+    gap:10px;
+    align-items:center;
+}
+
+.btn-buscar-reporte,
+.btn-limpiar-reporte{
+    display:inline-block;
+    padding:12px 20px;
+    border-radius:8px;
+    text-decoration:none;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.btn-buscar-reporte{
+    width:auto;
+    margin:0;
+    border:none;
+    background:#ff0000;
+    color:white;
+}
+
+.btn-limpiar-reporte{
+    background:#444444;
+    color:white;
+}
+
+.btn-buscar-reporte:hover{
+    background:#c90000;
+}
+
+.btn-limpiar-reporte:hover{
+    background:#666666;
+}
+
+.resumen-pagos-reporte{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:20px;
+    margin-bottom:25px;
+}
+
+.tarjeta-ingresos-reporte{
+    background:rgba(25,25,25,.96);
+    border:2px solid #28a745;
+    border-radius:14px;
+    padding:20px 25px;
+    box-shadow:0 0 15px rgba(40,167,69,.3);
+}
+
+.tarjeta-ingresos-reporte span{
+    display:block;
+    color:#dddddd;
+    margin-bottom:8px;
+}
+
+.tarjeta-ingresos-reporte strong{
+    color:#28a745;
+    font-size:32px;
+}
+
+@media(max-width:800px){
+
+    .resumen-pagos-reporte{
+        grid-template-columns:1fr;
+    }
+
+    .acciones-filtro{
+        width:100%;
+    }
+
+    .btn-buscar-reporte,
+    .btn-limpiar-reporte{
+        flex:1;
+        text-align:center;
+    }
+
+}
