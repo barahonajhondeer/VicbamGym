@@ -24,34 +24,69 @@ if(empty($id_cliente) || empty($tipo) || empty($fecha_inicio))
 }
 
 // =========================
-// CALCULAR FECHA FIN
+// DEFINIR VALOR Y DURACIÓN
 // =========================
 
-switch($tipo)
-{
+switch ($tipo) {
+
     case "Mensual":
-        $fecha_fin = date("Y-m-d", strtotime($fecha_inicio . " +30 days"));
+
+        $valor = 25.00;
+
+        $fecha_fin = date(
+            "Y-m-d",
+            strtotime($fecha_inicio . " +1 month")
+        );
+
         break;
 
     case "Trimestral":
-        $fecha_fin = date("Y-m-d", strtotime($fecha_inicio . " +90 days"));
+
+        $valor = 65.00;
+
+        $fecha_fin = date(
+            "Y-m-d",
+            strtotime($fecha_inicio . " +3 months")
+        );
+
         break;
 
     case "Semestral":
-        $fecha_fin = date("Y-m-d", strtotime($fecha_inicio . " +180 days"));
+
+        $valor = 120.00;
+
+        $fecha_fin = date(
+            "Y-m-d",
+            strtotime($fecha_inicio . " +6 months")
+        );
+
         break;
 
     case "Anual":
-        $fecha_fin = date("Y-m-d", strtotime($fecha_inicio . " +365 days"));
+
+        $valor = 220.00;
+
+        $fecha_fin = date(
+            "Y-m-d",
+            strtotime($fecha_inicio . " +1 year")
+        );
+
         break;
 
     default:
+
         echo "<script>
-        alert('Tipo de membresía incorrecto.');
-        window.location='membresias.php';
+            alert('Tipo de membresía incorrecto.');
+            window.location='membresias.php';
         </script>";
+
         exit();
 }
+// =========================
+// FECHA LÍMITE DE PAGO
+// =========================
+
+$fecha_limite_pago = $fecha_fin;
 
 // =========================
 // ESTADO
@@ -97,8 +132,10 @@ $sql = "INSERT INTO membresias
 (
 id_cliente,
 tipo,
+valor,
 fecha_inicio,
 fecha_fin,
+fecha_limite_pago,
 estado
 )
 
@@ -106,8 +143,10 @@ VALUES
 (
 '$id_cliente',
 '$tipo',
+'$valor',
 '$fecha_inicio',
 '$fecha_fin',
+'$fecha_limite_pago ',
 '$estado'
 )";
 

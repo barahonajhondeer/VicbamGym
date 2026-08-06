@@ -1,32 +1,103 @@
-    <?php
+<?php
 
 require_once("../config/conexion.php");
 
-// ===============================
-// RECIBIR DATOS
-// ===============================
+$id_cliente    = intval($_POST["id_cliente"]);
+$id_membresia  = intval($_POST["id_membresia"]);
+$valorAbono    = floatval($_POST["valor"]);
+$metodo_pago   = trim($_POST["metodo_pago"]);
+$fecha_pago    = $_POST["fecha_pago"];
 
-$id_cliente    = $_POST['id_cliente'];
-$id_membresia  = $_POST['id_membresia'];
-$valor         = $_POST['valor'];
-$metodo_pago   = $_POST['metodo_pago'];
-$fecha_pago    = $_POST['fecha_pago'];
+/* ==========================
+   VALIDACIONES
+========================== */
 
-// ===============================
-// VALIDACIONES
-// ===============================
-
-if(
-    empty($id_cliente) ||
-    empty($id_membresia) ||
-    empty($valor) ||
+if (
+    $id_cliente <= 0 ||
+    $id_membresia <= 0 ||
+    $valorAbono <= 0 ||
     empty($metodo_pago) ||
     empty($fecha_pago)
-){
+) {
+
+    echo "<script>
+        alert('Complete todos los campos.');
+        window.location='pagos.php';
+    </script>";
+
+    exit();
+}
+
+/* ==========================
+   OBTENER VALOR DE MEMBRESÍA
+========================== */
+
+$sql = "SELECT valor
+        FROM membresias
+        WHERE id_membresia=?";
+
+$stmt = mysqli_prepare($conexion,$sql);
+
+mysqli_stmt_bind_param(
+$stmt,
+"i",
+$id_membresia
+);
+
+mysqli_stmt_execute($stmt);
+
+$resultado = mysqli_stmt_get_result($stmt);
+
+$membresia = mysqli_fetch_assoc($resultado);
+
+if(!$membresia){
+
+    echo "<script>
+    alert('La membresía no existe.');
+    window.location='pagos.php';
+    </script>";
+
+    exit();
+}
+
+$valorTotal = floatval($membresia["valor"]);
+
+/* ==========================
+   TOTAL ABONADO
+========================== */
+
+$sql = "SELECT
+            IFNULL(SUM(valor),0) total
+        FROM pagos
+        WHERE id_membresia=?";
+
+$stmt = mysqli_prepare($conexion,$sql);
+
+mysqli_stmt_bind_param(
+$stmt,
+"i",
+$id_membresia
+);
+
+mysqli_stmt_execute($stmt);
+
+$resultado = mysqli_stmt_get_result($stmt);
+
+$total = mysqli_fetch_assoc($resultado);
+
+$totalAbonado = floatval($total["total"]);
+
+$saldo = $valorTotal - $totalAbonado;
+
+/* ==========================
+   VALIDAR ABONO
+========================== */
+
+if($valorAbono > $saldo){
 
     echo "<script>
 
-    alert('Todos los campos son obligatorios.');
+    alert('El abono supera el saldo pendiente.');
 
     window.location='pagos.php';
 
@@ -36,111 +107,60 @@ if(
 
 }
 
-if($valor<=0){
+/* ==========================
+   INSERTAR PAGO
+========================== */
 
-    echo "<script>
-
-    alert('El valor del pago debe ser mayor a cero.');
-
-    window.location='pagos.php';
-
-    </script>";
-
-    exit();
-
-}
-
-// ===============================
-// VERIFICAR QUE EL CLIENTE EXISTA
-// ===============================
-
-$sql="SELECT * FROM clientes
-WHERE id_cliente='$id_cliente'";
-
-$resultado=mysqli_query($conexion,$sql);
-
-if(mysqli_num_rows($resultado)==0){
-
-    echo "<script>
-
-    alert('El cliente seleccionado no existe.');
-
-    window.location='pagos.php';
-
-    </script>";
-
-    exit();
-
-}
-
-// ===============================
-// VERIFICAR MEMBRESÍA
-// ===============================
-
-$sql="SELECT *
-FROM membresias
-WHERE id_membresia='$id_membresia'
-AND estado='Activa'";
-
-$resultado=mysqli_query($conexion,$sql);
-
-if(mysqli_num_rows($resultado)==0){
-
-    echo "<script>
-
-    alert('La membresía no está activa.');
-
-    window.location='pagos.php';
-
-    </script>";
-
-    exit();
-
-}
-
-// ===============================
-// INSERTAR
-// ===============================
-
-$sql="INSERT INTO pagos(
-
+$sql = "INSERT INTO pagos
+(
 id_cliente,
-
 id_membresia,
-
 valor,
-
 metodo_pago,
-
 fecha_pago
-
 )
 
-VALUES(
-
-'$id_cliente',
-
-'$id_membresia',
-
-'$valor',
-
-'$metodo_pago',
-
-'$fecha_pago'
-
+VALUES
+(
+?,
+?,
+?,
+?,
+?
 )";
 
-if(mysqli_query($conexion,$sql)){
+$stmt = mysqli_prepare($conexion,$sql);
+
+mysqli_stmt_bind_param(
+
+$stmt,
+
+"iidss",
+
+$id_cliente,
+
+$id_membresia,
+
+$valorAbono,
+
+$metodo_pago,
+
+$fecha_pago
+
+);
+
+if(mysqli_stmt_execute($stmt)){
 
     echo "<script>
 
-    alert('Pago registrado correctamente.');
+    alert('Abono registrado correctamente.');
 
     window.location='pagos.php';
 
     </script>";
 
-}else{
+}
+else{
 
     echo "<script>
 

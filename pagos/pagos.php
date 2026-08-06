@@ -151,27 +151,65 @@ readonly>
 
 <div class="form-group">
 
-    <label>Valor</label>
+    <label>Valor total de la membresía</label>
 
     <input
-        type="text"
-        id="valor"
-        name="valor"
+        type="number"
+        id="valor_total"
+        step="0.01"
         readonly>
-
-</div>
 
 </div>
 
 <div class="form-group">
 
-<label>Valor recibido</label>
+    <label>Total abonado</label>
 
-<input
-type="number"
-step="0.01"
-name="valor"
-required>
+    <input
+        type="number"
+        id="total_abonado"
+        step="0.01"
+        readonly>
+
+</div>
+
+<div class="form-group">
+
+    <label>Saldo pendiente</label>
+
+    <input
+        type="number"
+        id="saldo_pendiente"
+        step="0.01"
+        readonly>
+
+</div>
+
+<div class="form-group">
+
+    <label>Fecha límite de pago</label>
+
+    <input
+        type="date"
+        id="fecha_limite_pago"
+        readonly>
+
+</div>
+
+<div class="form-group">
+
+    <label>Valor del nuevo abono</label>
+
+    <input
+        type="number"
+        name="valor"
+        id="valor"
+        step="0.01"
+        min="0.01"
+        placeholder="Ingrese el valor del abono"
+        required>
+
+</div>
 
 </div>
 
@@ -327,61 +365,217 @@ Eliminar
 
 <script>
 
-document.getElementById("id_cliente").addEventListener("change",function(){
-    
-    console.log("Cliente seleccionado");
+document.addEventListener("DOMContentLoaded", function () {
 
-let id=this.value;
+    const cliente =
+        document.getElementById("id_cliente");
 
-fetch("obtener_membresia.php",{
+    const idMembresia =
+        document.getElementById("id_membresia");
 
-method:"POST",
+    const tipo =
+        document.getElementById("tipo");
 
-headers:{
-'Content-Type':'application/x-www-form-urlencoded'
-},
+    const fechaInicio =
+        document.getElementById("fecha_inicio");
 
-body:"id_cliente="+id
+    const fechaFin =
+        document.getElementById("fecha_fin");
 
-})
+    const estado =
+        document.getElementById("estado");
 
-.then(response=>response.json())
+    const valorTotal =
+        document.getElementById("valor_total");
 
-.then(data=>{
+    const totalAbonado =
+        document.getElementById("total_abonado");
 
-if(data){
+    const saldoPendiente =
+        document.getElementById("saldo_pendiente");
 
-document.getElementById("id_membresia").value=data.id_membresia;
+    const fechaLimite =
+        document.getElementById("fecha_limite_pago");
 
-document.getElementById("tipo").value=data.tipo;
+    const valorAbono =
+        document.getElementById("valor");
 
-document.getElementById("valor").value=data.valor; 
+    const botonGuardar =
+        document.querySelector(".btn-guardar");
 
-document.getElementById("fecha_inicio").value=data.fecha_inicio;
+    function limpiarCampos() {
 
-document.getElementById("fecha_fin").value=data.fecha_fin;
+        idMembresia.value = "";
+        tipo.value = "";
+        fechaInicio.value = "";
+        fechaFin.value = "";
+        estado.value = "";
+        valorTotal.value = "";
+        totalAbonado.value = "";
+        saldoPendiente.value = "";
+        fechaLimite.value = "";
+        valorAbono.value = "";
+        valorAbono.max = "";
 
-document.getElementById("estado").value=data.estado;
+    }
 
-}else{
+    cliente.addEventListener("change", function () {
 
-document.getElementById("id_membresia").value="";
+        const idCliente = this.value;
 
-document.getElementById("tipo").value="";
+        limpiarCampos();
 
-document.getElementById("valor").value="";
+        if (idCliente === "") {
+            return;
+        }
 
-document.getElementById("fecha_inicio").value="";
+        fetch("obtener_membresia.php", {
 
-document.getElementById("fecha_fin").value="";
+            method: "POST",
 
-document.getElementById("estado").value="";
+            headers: {
+                "Content-Type":
+                    "application/x-www-form-urlencoded"
+            },
 
-alert("El cliente no posee una membresía activa.");
+            body:
+                "id_cliente=" +
+                encodeURIComponent(idCliente)
 
-}
+        })
 
-});
+        .then(function (response) {
+
+            if (!response.ok) {
+                throw new Error(
+                    "No se pudo consultar la membresía."
+                );
+            }
+
+            return response.json();
+
+        })
+
+        .then(function (data) {
+
+            if (!data) {
+
+                botonGuardar.disabled = true;
+
+                alert(
+                    "El cliente no posee una membresía activa."
+                );
+
+                return;
+            }
+
+            idMembresia.value =
+                data.id_membresia;
+
+            tipo.value =
+                data.tipo;
+
+            fechaInicio.value =
+                data.fecha_inicio;
+
+            fechaFin.value =
+                data.fecha_fin;
+
+            estado.value =
+                data.estado;
+
+            valorTotal.value =
+                parseFloat(data.valor || 0).toFixed(2);
+
+            totalAbonado.value =
+                parseFloat(
+                    data.total_abonado || 0
+                ).toFixed(2);
+
+            saldoPendiente.value =
+                parseFloat(
+                    data.saldo_pendiente || 0
+                ).toFixed(2);
+
+            fechaLimite.value =
+                data.fecha_limite_pago ||
+                data.fecha_fin;
+
+            valorAbono.max =
+                data.saldo_pendiente;
+
+            const saldo =
+                parseFloat(
+                    data.saldo_pendiente || 0
+                );
+
+            if (saldo <= 0) {
+
+                valorAbono.disabled = true;
+                botonGuardar.disabled = true;
+
+                botonGuardar.textContent =
+                    "Membresía pagada";
+
+            } else {
+
+                valorAbono.disabled = false;
+                botonGuardar.disabled = false;
+
+                botonGuardar.textContent =
+                    "Registrar abono";
+            }
+
+        })
+
+        .catch(function (error) {
+
+            limpiarCampos();
+
+            botonGuardar.disabled = true;
+
+            console.error(error);
+
+            alert(
+                "Ocurrió un error al obtener la membresía."
+            );
+
+        });
+
+    });
+
+    valorAbono.addEventListener(
+        "input",
+        function () {
+
+            const saldo =
+                parseFloat(
+                    saldoPendiente.value
+                ) || 0;
+
+            const abono =
+                parseFloat(this.value) || 0;
+
+            if (abono <= 0) {
+
+                this.setCustomValidity(
+                    "El abono debe ser mayor a cero."
+                );
+
+            } else if (abono > saldo) {
+
+                this.setCustomValidity(
+                    "El abono no puede superar el saldo pendiente de $" +
+                    saldo.toFixed(2)
+                );
+
+            } else {
+
+                this.setCustomValidity("");
+            }
+
+        }
+    );
 
 });
 
