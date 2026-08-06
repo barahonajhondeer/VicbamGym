@@ -1564,3 +1564,71 @@ table tr:hover{
     }
 
 }
+/* =================================
+   MEMBRESÍAS PRÓXIMAS A VENCER
+================================= */
+
+.estado-proxima{
+    display:inline-block;
+    background:#ffc107;
+    color:#111111;
+    padding:6px 12px;
+    border-radius:20px;
+    font-weight:bold;
+    white-space:nowrap;
+}
+
+.dias-proximos{
+    color:#ffc107;
+    font-weight:bold;
+}
+
+.dias-hoy{
+    color:#ff9800;
+    font-weight:bold;
+}
+
+.dias-vencida{
+    color:#dc3545;
+    font-weight:bold;
+}
+
+.dias-normales{
+    color:#28a745;
+    font-weight:bold;
+}
+
+.fila-proxima td{
+    background:rgba(255,193,7,.16) !important;
+}
+
+.fila-proxima:hover td{
+    background:rgba(255,193,7,.28) !important;
+}
+
+.fila-vencida td{
+    background:rgba(220,53,69,.13) !important;
+}
+
+.fila-vencida:hover td{
+    background:rgba(220,53,69,.25) !important;
+}
+
+.acciones-membresia{
+    min-width:250px;
+}
+
+.btn-renovar{
+    display:inline-block;
+    background:#28a745;
+    color:white;
+    padding:8px 12px;
+    border-radius:6px;
+    text-decoration:none;
+    font-weight:bold;
+    margin-right:5px;
+}
+
+.btn-renovar:hover{
+    background:#218838;
+}
