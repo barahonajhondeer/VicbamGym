@@ -103,7 +103,11 @@ $totalIngresos = $datosIngresos['total'] ?? 0;
                 📊 Reportes
             </a>
         </li>
-
+        <li>
+            <a href="../usuarios/usuarios.php">
+                👨‍💼 Usuarios
+            </a>
+        </li>
         <li>
             <a href="../logout.php">
                 🚪 Salir

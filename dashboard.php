@@ -128,6 +128,12 @@ $resultadoProximas = mysqli_query($conexion, $sqlProximas);
         </li>
 
         <li>
+            <a href="usuarios/usuarios.php">
+                👨‍💼 Usuarios
+            </a>
+        </li>
+
+        <li>
             <a href="logout.php">
                 🚪 Salir
             </a>
@@ -146,7 +152,7 @@ $resultadoProximas = mysqli_query($conexion, $sqlProximas);
         <p>
             Resumen general y accesos principales del sistema VICBAMGYM.
         </p>
-        
+
         <p class="usuario-sesion">
 
 Bienvenido:

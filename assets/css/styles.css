@@ -1647,3 +1647,31 @@ table tr:hover{
     color:#ff0000;
 
 }
+/* ==============================
+   ROLES DE USUARIO
+============================== */
+
+.rol-administrador,
+.rol-recepcionista,
+.usuario-actual{
+    display:inline-block;
+    padding:6px 12px;
+    border-radius:20px;
+    font-weight:bold;
+    white-space:nowrap;
+}
+
+.rol-administrador{
+    background:#dc3545;
+    color:white;
+}
+
+.rol-recepcionista{
+    background:#17a2b8;
+    color:white;
+}
+
+.usuario-actual{
+    background:#444444;
+    color:#dddddd;
+}

@@ -39,6 +39,8 @@ require_once("../config/verificar_sesion.php");
 
 <li><a href="../reportes/reportes.php">📊 Reportes</a></li>
 
+<li><a href="../usuarios/usuarios.php">👨‍💼 Usuarios</a></li>
+
 <li><a href="../logout.php">🚪 Salir</a></li>
 
 </ul>
