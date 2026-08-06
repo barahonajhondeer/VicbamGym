@@ -36,6 +36,8 @@ require_once("../config/conexion.php");
 
 <li><a href="pagos.php">💰 Pagos</a></li>
 
+<li><a href="../reportes/reportes.php">📊 Reportes</a></li>
+
 <li><a href="../logout.php">🚪 Salir</a></li>
 
 </ul>

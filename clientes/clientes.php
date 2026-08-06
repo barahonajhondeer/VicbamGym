@@ -163,6 +163,11 @@ while($fila = mysqli_fetch_assoc($resultado))
 
     <td>
 
+ <a href="historial_cliente.php?id=<?php echo $fila['id_cliente']; ?>"  class="btn-historial">
+    Historial
+
+</a>
+
 <a href="editar_cliente.php?id=<?php echo $fila['id_cliente']; ?>" class="btn-editar">
     Editar
 </a>
