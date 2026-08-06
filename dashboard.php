@@ -143,6 +143,10 @@ $resultadoProximas = mysqli_query($conexion, $sqlProximas);
 
 </nav>
 
+<?php
+require_once("config/notificaciones.php");
+?>
+
 <main class="dashboard-contenido">
 
     <section class="dashboard-encabezado">

@@ -118,6 +118,10 @@ $totalIngresos = $datosIngresos['total'] ?? 0;
 
 </nav>
 
+<?php
+require_once("../config/notificaciones.php");
+?>
+
 <!-- ===============================
      CONTENIDO PRINCIPAL
 ================================ -->

@@ -14,11 +14,11 @@ $password = trim($_POST["password"] ?? "");
 
 if ($usuario === "" || $password === "") {
 
-    echo "<script>
-        alert('Ingrese usuario y contraseña.');
-        window.location='index.php';
-    </script>";
-
+    header(
+        "Location: index.php?tipo=advertencia&mensaje=" .
+        urlencode("Ingrese el usuario y la contraseña.")
+    );
+    
     exit();
 }
 
@@ -58,15 +58,24 @@ if (
     $_SESSION["rol"] =
         $datosUsuario["rol"];
 
-    header("Location: dashboard.php");
-    exit();
-
+        header(
+            "Location: dashboard.php?tipo=exito&mensaje=" .
+            urlencode(
+                "Bienvenido al sistema, " .
+                $datosUsuario["usuario"] .
+                "."
+            )
+        );
+    
+        exit();
 } else {
 
-    echo "<script>
-        alert('Usuario o contraseña incorrectos.');
-        window.location='index.php';
-    </script>";
+    header(
+        "Location: index.php?tipo=error&mensaje=" .
+        urlencode("Usuario o contraseña incorrectos.")
+    );
+    
+    exit();
 }
 
 ?>

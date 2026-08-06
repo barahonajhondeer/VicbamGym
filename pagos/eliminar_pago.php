@@ -5,15 +5,12 @@ require_once("../config/conexion.php");
 // Verificar que llegue el ID
 if(!isset($_GET['id']))
 {
-    echo "<script>
-
-    alert('No se recibió el identificador del pago.');
-
-    window.location='pagos.php';
-
-    </script>";
-
-    exit();
+    header(
+        "Location: pagos.php?tipo=advertencia&mensaje=" .
+        urlencode("No se recibió el identificador del pago.")
+    );
+    
+    exit(); 
 }
 
 $id = $_GET['id'];
@@ -45,23 +42,21 @@ WHERE id_pago='$id'";
 
 if(mysqli_query($conexion,$sqlEliminar))
 {
-    echo "<script>
-
-    alert('Pago eliminado correctamente.');
-
-    window.location='pagos.php';
-
-    </script>";
+    header(
+        "Location: pagos.php?tipo=exito&mensaje=" .
+        urlencode("Pago eliminado correctamente.")
+    );
+    
+    exit();;
 }
 else
 {
-    echo "<script>
-
-    alert('Error al eliminar el pago.');
-
-    window.location='pagos.php';
-
-    </script>";
+    header(
+        "Location: pagos.php?tipo=error&mensaje=" .
+        urlencode("No se pudo eliminar el pago.")
+    );
+    
+    exit();
 }
 
 ?>

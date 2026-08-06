@@ -23,12 +23,12 @@ if (
     !in_array($rol, $rolesPermitidos, true)
 ) {
 
-    echo "<script>
-        alert('Los datos ingresados no son válidos.');
-        window.location='usuarios.php';
-    </script>";
-
-    exit();
+    header(
+        "Location: usuarios.php?tipo=advertencia&mensaje=" .
+        urlencode("Complete correctamente todos los campos.")
+        );
+        
+        exit();
 }
 
 $sqlValidar = "SELECT id_usuario
@@ -55,12 +55,12 @@ $resultadoValidar = mysqli_stmt_get_result(
 
 if (mysqli_num_rows($resultadoValidar) > 0) {
 
-    echo "<script>
-        alert('El nombre de usuario ya está registrado.');
-        window.location='usuarios.php';
-    </script>";
-
-    exit();
+    header(
+        "Location: usuarios.php?tipo=advertencia&mensaje=" .
+        urlencode("El usuario ya existe.")
+        );
+        
+        exit();
 }
 
 /*
@@ -94,17 +94,20 @@ mysqli_stmt_bind_param(
 
 if (mysqli_stmt_execute($stmt)) {
 
-    echo "<script>
-        alert('Usuario registrado correctamente.');
-        window.location='usuarios.php';
-    </script>";
-
+    header(
+        "Location: usuarios.php?tipo=exito&mensaje=" .
+        urlencode("Usuario registrado correctamente.")
+        );
+        
+        exit();
 } else {
 
-    echo "<script>
-        alert('No se pudo registrar el usuario.');
-        window.location='usuarios.php';
-    </script>";
+    header(
+        "Location: usuarios.php?tipo=error&mensaje=" .
+        urlencode("No se pudo registrar el usuario.")
+        );
+        
+        exit();
 }
 
 ?>

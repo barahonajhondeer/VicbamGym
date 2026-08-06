@@ -64,17 +64,19 @@ mysqli_stmt_bind_param(
 
 if (mysqli_stmt_execute($stmt)) {
 
-    echo "<script>
-        alert('Membresía renovada correctamente.');
-        window.location='membresias.php';
-    </script>";
+    header(
+        "Location: membresias.php?tipo=exito&mensaje=" .
+        urlencode("Membresía renovada correctamente.")
+    );
+    exit();
 
 } else {
 
-    echo "<script>
-        alert('No se pudo renovar la membresía.');
-        window.location='membresias.php';
-    </script>";
+    header(
+        "Location: membresias.php?tipo=error&mensaje=" .
+        urlencode("No se pudo renovar la membresía.")
+    );
+    exit();
 }
 
 mysqli_stmt_close($stmt);

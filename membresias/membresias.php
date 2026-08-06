@@ -52,6 +52,10 @@ mysqli_query($conexion, $sqlActualizarEstados);
 
 </nav>
 
+<?php
+require_once("../config/notificaciones.php");
+?>
+
 <div class="contenedor-principal">
 
 <!-- ========================= -->

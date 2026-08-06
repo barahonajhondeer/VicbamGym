@@ -25,14 +25,11 @@ if(
     empty($fecha_pago)
 ){
 
-    echo "<script>
-
-    alert('Todos los campos son obligatorios.');
-
-    window.location='pagos.php';
-
-    </script>";
-
+    header(
+        "Location: pagos.php?tipo=advertencia&mensaje=" .
+        urlencode("Complete todos los campos obligatorios.")
+    );
+    
     exit();
 
 }
@@ -73,23 +70,21 @@ WHERE id_pago='$id_pago'";
 
 if(mysqli_query($conexion,$sql)){
 
-    echo "<script>
-
-    alert('Pago actualizado correctamente.');
-
-    window.location='pagos.php';
-
-    </script>";
+    header(
+        "Location: pagos.php?tipo=exito&mensaje=" .
+        urlencode("Pago actualizado correctamente.")
+    );
+    
+    exit();
 
 }else{
 
-    echo "<script>
-
-    alert('Error al actualizar el pago.');
-
-    window.location='pagos.php';
-
-    </script>";
+    header(
+        "Location: pagos.php?tipo=error&mensaje=" .
+        urlencode("No se pudo actualizar el pago.")
+    );
+    
+    exit();
 
 }
 

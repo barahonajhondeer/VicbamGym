@@ -16,10 +16,10 @@ $fecha_inicio = $_POST['fecha_inicio'];
 
 if(empty($id_cliente) || empty($tipo) || empty($fecha_inicio))
 {
-    echo "<script>
-    alert('Todos los campos son obligatorios.');
-    window.location='membresias.php';
-    </script>";
+    header(
+        "Location: membresias.php?tipo=advertencia&mensaje=" .
+        urlencode("Todos los campos son obligatorios.")
+    );
     exit();
 }
 
@@ -117,10 +117,10 @@ $resultado = mysqli_query($conexion,$sqlValidar);
 
 if(mysqli_num_rows($resultado)>0)
 {
-    echo "<script>
-    alert('Este cliente ya posee una membresía activa.');
-    window.location='membresias.php';
-    </script>";
+    header(
+        "Location: membresias.php?tipo=advertencia&mensaje=" .
+        urlencode("Este cliente ya posee una membresía activa.")
+    );
     exit();
 }
 
@@ -152,17 +152,19 @@ VALUES
 
 if(mysqli_query($conexion,$sql))
 {
-    echo "<script>
-    alert('Membresía registrada correctamente.');
-    window.location='membresias.php';
-    </script>";
+    header(
+        "Location: membresias.php?tipo=exito&mensaje=" .
+        urlencode("Membresía registrada correctamente.")
+    );
+    exit();
 }
 else
 {
-    echo "<script>
-    alert('Error al registrar la membresía.');
-    window.location='membresias.php';
-    </script>";
+    header(
+        "Location: membresias.php?tipo=error&mensaje=" .
+        urlencode("No se pudo registrar la membresía.")
+    );
+    exit();
 }
 
 ?>

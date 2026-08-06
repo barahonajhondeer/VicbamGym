@@ -65,12 +65,12 @@ $resultadoDuplicado = mysqli_stmt_get_result(
 
 if (mysqli_num_rows($resultadoDuplicado) > 0) {
 
-    echo "<script>
-        alert('El nombre de usuario ya está registrado.');
-        window.location='editar_usuario.php?id=$id_usuario';
-    </script>";
-
-    exit();
+    header(
+        "Location: usuarios.php?tipo=advertencia&mensaje=" .
+        urlencode("El nombre de usuario ya existe.")
+        );
+        
+        exit();
 }
 
 /* Actualizar con o sin contraseña */
@@ -138,17 +138,21 @@ if (mysqli_stmt_execute($stmt)) {
         $_SESSION["rol"] = $rol;
     }
 
-    echo "<script>
-        alert('Usuario actualizado correctamente.');
-        window.location='usuarios.php';
-    </script>";
+    header(
+        "Location: usuarios.php?tipo=exito&mensaje=" .
+        urlencode("Usuario actualizado correctamente.")
+        );
+        
+        exit();
 
 } else {
 
-    echo "<script>
-        alert('No se pudo actualizar el usuario.');
-        window.location='usuarios.php';
-    </script>";
+    header(
+        "Location: usuarios.php?tipo=error&mensaje=" .
+        urlencode("No se pudo actualizar el usuario.")
+        );
+        
+        exit();
 }
 
 mysqli_stmt_close($stmt);

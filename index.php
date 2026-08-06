@@ -7,6 +7,10 @@
 </head>
 <body class="login-body"></bodyclass>>
 
+<?php
+require_once("config/notificaciones.php");
+?>
+
 <div class="login-container">
 
     <h1>VICBAMGYM</h1>

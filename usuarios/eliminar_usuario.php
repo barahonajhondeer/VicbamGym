@@ -22,10 +22,12 @@ if (
     (int) $_SESSION["id_usuario"]
 ) {
 
-    echo "<script>
-        alert('No puede eliminar el usuario con el que inició sesión.');
-        window.location='usuarios.php';
-    </script>";
+    header(
+        "Location: usuarios.php?tipo=advertencia&mensaje=" .
+        urlencode("No puede eliminar el usuario que tiene la sesión iniciada.")
+        );
+        
+        exit();
 
     exit();
 }
@@ -56,12 +58,12 @@ $resultadoExiste = mysqli_stmt_get_result(
 
 if (mysqli_num_rows($resultadoExiste) === 0) {
 
-    echo "<script>
-        alert('El usuario no existe.');
-        window.location='usuarios.php';
-    </script>";
-
-    exit();
+    header(
+        "Location: usuarios.php?tipo=advertencia&mensaje=" .
+        urlencode("El usuario seleccionado no existe.")
+        );
+        
+        exit();
 }
 
 /* Eliminar */
@@ -82,17 +84,21 @@ mysqli_stmt_bind_param(
 
 if (mysqli_stmt_execute($stmtEliminar)) {
 
-    echo "<script>
-        alert('Usuario eliminado correctamente.');
-        window.location='usuarios.php';
-    </script>";
+    header(
+        "Location: usuarios.php?tipo=exito&mensaje=" .
+        urlencode("Usuario eliminado correctamente.")
+        );
+        
+        exit();
 
 } else {
 
-    echo "<script>
-        alert('No se pudo eliminar el usuario.');
-        window.location='usuarios.php';
-    </script>";
+    header(
+        "Location: usuarios.php?tipo=error&mensaje=" .
+        urlencode("No se pudo eliminar el usuario.")
+        );
+        
+        exit();
 }
 
 mysqli_stmt_close($stmtEliminar);

@@ -45,23 +45,19 @@ WHERE id_membresia='$id'";
 
 if(mysqli_query($conexion,$sqlEliminar))
 {
-    echo "<script>
-
-    alert('Membresía eliminada correctamente.');
-
-    window.location='membresias.php';
-
-    </script>";
+    header(
+        "Location: membresias.php?tipo=exito&mensaje=" .
+        urlencode("Membresía eliminada correctamente.")
+    );
+    exit();
 }
 else
 {
-    echo "<script>
-
-    alert('Error al eliminar la membresía.');
-
-    window.location='membresias.php';
-
-    </script>";
+    header(
+        "Location: membresias.php?tipo=exito&mensaje=" .
+        urlencode("Membresía eliminada correctamente.")
+    );
+    exit();
 }
 
 ?>

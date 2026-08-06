@@ -21,13 +21,12 @@ if(
     empty($fecha_inicio)
 ){
 
-    echo "<script>
-
-    alert('Todos los campos son obligatorios.');
-
-    window.location='membresias.php';
-
-    </script>";
+    header(
+        "Location: membresias.php?tipo=advertencia&mensaje=" .
+        urlencode("Todos los campos son obligatorios.")
+    );
+    
+    exit();
 
     exit();
 
@@ -115,23 +114,19 @@ WHERE id_membresia='$id_membresia'";
 
 if(mysqli_query($conexion,$sql)){
 
-    echo "<script>
-
-    alert('Membresía actualizada correctamente.');
-
-    window.location='membresias.php';
-
-    </script>";
+    header(
+        "Location: membresias.php?tipo=exito&mensaje=" .
+        urlencode("Membresía actualizada correctamente.")
+    );
+    exit();
 
 }else{
 
-    echo "<script>
-
-    alert('Error al actualizar la membresía.');
-
-    window.location='membresias.php';
-
-    </script>";
+    header(
+        "Location: membresias.php?tipo=error&mensaje=" .
+        urlencode("No se pudo actualizar la membresía.")
+    );
+    exit();
 
 }
 

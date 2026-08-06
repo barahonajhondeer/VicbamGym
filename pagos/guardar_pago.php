@@ -20,11 +20,11 @@ if (
     empty($fecha_pago)
 ) {
 
-    echo "<script>
-        alert('Complete todos los campos.');
-        window.location='pagos.php';
-    </script>";
-
+    header(
+        "Location: pagos.php?tipo=advertencia&mensaje=" .
+        urlencode("Complete todos los campos obligatorios.")
+    );
+    
     exit();
 }
 
@@ -52,11 +52,11 @@ $membresia = mysqli_fetch_assoc($resultado);
 
 if(!$membresia){
 
-    echo "<script>
-    alert('La membresía no existe.');
-    window.location='pagos.php';
-    </script>";
-
+    header(
+        "Location: pagos.php?tipo=error&mensaje=" .
+        urlencode("La membresía seleccionada no existe.")
+    );
+    
     exit();
 }
 
@@ -95,14 +95,11 @@ $saldo = $valorTotal - $totalAbonado;
 
 if($valorAbono > $saldo){
 
-    echo "<script>
-
-    alert('El abono supera el saldo pendiente.');
-
-    window.location='pagos.php';
-
-    </script>";
-
+    header(
+        "Location: pagos.php?tipo=info&mensaje=" .
+        urlencode("Esta membresía ya se encuentra pagada completamente.")
+    );
+    
     exit();
 
 }
@@ -149,27 +146,43 @@ $fecha_pago
 
 );
 
-if(mysqli_stmt_execute($stmt)){
+if (mysqli_stmt_execute($stmt)) {
 
-    echo "<script>
+    $nuevoSaldo = $saldo - $valorAbono;
 
-    alert('Abono registrado correctamente.');
+    if ($nuevoSaldo <= 0) {
 
-    window.location='pagos.php';
+        header(
+            "Location: pagos.php?tipo=exito&mensaje=" .
+            urlencode(
+                "Pago completado. La membresía quedó totalmente pagada."
+            )
+        );
 
-    </script>";
+        exit();
 
-}
-else{
+    } else {
 
-    echo "<script>
+        header(
+            "Location: pagos.php?tipo=exito&mensaje=" .
+            urlencode(
+                "Abono registrado correctamente. Saldo pendiente: $" .
+                number_format($nuevoSaldo, 2) .
+                "."
+            )
+        );
 
-    alert('Error al registrar el pago.');
+        exit();
+    }
 
-    window.location='pagos.php';
+} else {
 
-    </script>";
+    header(
+        "Location: pagos.php?tipo=error&mensaje=" .
+        urlencode("No se pudo registrar el abono.")
+    );
 
+    exit();
 }
 
 ?>

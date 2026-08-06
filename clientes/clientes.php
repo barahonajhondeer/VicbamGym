@@ -44,6 +44,10 @@ require_once("../config/verificar_sesion.php");
 
 </nav>
 
+<?php
+require_once("../config/notificaciones.php");
+?>
+
 <div class="contenedor-principal">
 
 <div class="form-container">

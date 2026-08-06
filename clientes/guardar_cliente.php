@@ -2,121 +2,183 @@
 
 require_once("../config/conexion.php");
 
-$cedula = $_POST['cedula'];
-$nombres = $_POST['nombres'];
-$apellidos = $_POST['apellidos'];
-$telefono = $_POST['telefono'];
-$correo = $_POST['correo'];
-$direccion = $_POST['direccion'];
+$cedula = trim($_POST['cedula'] ?? '');
+$nombres = trim($_POST['nombres'] ?? '');
+$apellidos = trim($_POST['apellidos'] ?? '');
+$telefono = trim($_POST['telefono'] ?? '');
+$correo = trim($_POST['correo'] ?? '');
+$direccion = trim($_POST['direccion'] ?? '');
+
+/* ==========================
+   FUNCIÓN PARA REDIRECCIONAR
+========================== */
+
+function redirigirConMensaje($tipo, $mensaje)
+{
+    header(
+        "Location: clientes.php?tipo=" .
+        urlencode($tipo) .
+        "&mensaje=" .
+        urlencode($mensaje)
+    );
+
+    exit();
+}
+
+/* ==========================
+   VALIDAR CAMPOS VACÍOS
+========================== */
+
+if (
+    $cedula === '' ||
+    $nombres === '' ||
+    $apellidos === '' ||
+    $telefono === '' ||
+    $correo === '' ||
+    $direccion === ''
+) {
+    redirigirConMensaje(
+        "advertencia",
+        "Todos los campos son obligatorios."
+    );
+}
 
 /* ==========================
    VALIDAR CÉDULA
 ========================== */
 
-if(!preg_match('/^[0-9]{10}$/', $cedula)){
+if (!preg_match('/^[0-9]{10}$/', $cedula)) {
 
-    echo "<script>
-    alert('La cédula debe contener exactamente 10 dígitos numéricos.');
-    window.location='clientes.php';
-    </script>";
-
-    exit();
-
+    redirigirConMensaje(
+        "advertencia",
+        "La cédula debe contener exactamente 10 dígitos numéricos."
+    );
 }
 
 /* ==========================
    VALIDAR CORREO
 ========================== */
 
-if(!filter_var($correo, FILTER_VALIDATE_EMAIL)){
+if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
 
-    echo "<script>
-    alert('Ingrese un correo electrónico válido.');
-    window.location='clientes.php';
-    </script>";
-
-    exit();
-
+    redirigirConMensaje(
+        "advertencia",
+        "Ingrese un correo electrónico válido."
+    );
 }
 
 /* ==========================
    VALIDAR CÉDULA REPETIDA
 ========================== */
 
-$sql = "SELECT * FROM clientes WHERE cedula='$cedula'";
+$sqlCedula = "SELECT id_cliente
+              FROM clientes
+              WHERE cedula = ?
+              LIMIT 1";
 
-$resultado = mysqli_query($conexion, $sql);
+$stmtCedula = mysqli_prepare($conexion, $sqlCedula);
 
-if(mysqli_num_rows($resultado) > 0){
+mysqli_stmt_bind_param(
+    $stmtCedula,
+    "s",
+    $cedula
+);
 
-    echo "<script>
-    alert('Ya existe un cliente registrado con esa cédula.');
-    window.location='clientes.php';
-    </script>";
+mysqli_stmt_execute($stmtCedula);
 
-    exit();
+$resultadoCedula = mysqli_stmt_get_result($stmtCedula);
 
+if (mysqli_num_rows($resultadoCedula) > 0) {
+
+    redirigirConMensaje(
+        "advertencia",
+        "Ya existe un cliente registrado con esa cédula."
+    );
 }
 
 /* ==========================
    VALIDAR CORREO REPETIDO
 ========================== */
 
-$sql = "SELECT * FROM clientes WHERE correo='$correo'";
+$sqlCorreo = "SELECT id_cliente
+              FROM clientes
+              WHERE correo = ?
+              LIMIT 1";
 
-$resultado = mysqli_query($conexion, $sql);
+$stmtCorreo = mysqli_prepare($conexion, $sqlCorreo);
 
-if(mysqli_num_rows($resultado) > 0){
+mysqli_stmt_bind_param(
+    $stmtCorreo,
+    "s",
+    $correo
+);
 
-    echo "<script>
-    alert('El correo electrónico ya se encuentra registrado.');
-    window.location='clientes.php';
-    </script>";
+mysqli_stmt_execute($stmtCorreo);
 
-    exit();
+$resultadoCorreo = mysqli_stmt_get_result($stmtCorreo);
 
+if (mysqli_num_rows($resultadoCorreo) > 0) {
+
+    redirigirConMensaje(
+        "advertencia",
+        "El correo electrónico ya se encuentra registrado."
+    );
 }
 
 /* ==========================
    INSERTAR CLIENTE
 ========================== */
 
-$sql = "INSERT INTO clientes
+$sqlInsertar = "INSERT INTO clientes
 (
-cedula,
-nombres,
-apellidos,
-telefono,
-correo,
-direccion,
-fecha_registro
+    cedula,
+    nombres,
+    apellidos,
+    telefono,
+    correo,
+    direccion,
+    fecha_registro
 )
-
 VALUES
 (
-'$cedula',
-'$nombres',
-'$apellidos',
-'$telefono',
-'$correo',
-'$direccion',
-CURDATE()
+    ?,
+    ?,
+    ?,
+    ?,
+    ?,
+    ?,
+    CURDATE()
 )";
 
-if(mysqli_query($conexion, $sql)){
+$stmtInsertar = mysqli_prepare(
+    $conexion,
+    $sqlInsertar
+);
 
-    echo "<script>
-    alert('Cliente registrado correctamente.');
-    window.location='clientes.php';
-    </script>";
+mysqli_stmt_bind_param(
+    $stmtInsertar,
+    "ssssss",
+    $cedula,
+    $nombres,
+    $apellidos,
+    $telefono,
+    $correo,
+    $direccion
+);
 
-}else{
+if (mysqli_stmt_execute($stmtInsertar)) {
 
-    echo "<script>
-    alert('Ocurrió un error al registrar el cliente.');
-    window.location='clientes.php';
-    </script>";
+    redirigirConMensaje(
+        "exito",
+        "Cliente registrado correctamente."
+    );
 
+} else {
+
+    redirigirConMensaje(
+        "error",
+        "No se pudo registrar el cliente."
+    );
 }
 
 ?>
