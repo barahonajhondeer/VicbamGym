@@ -5,7 +5,7 @@
             "name": "Abrir VicbamGym en el Navegador",
             "type": "chrome", 
             "request": "launch",
-            "url": "http://localhost/DES-L4NA/VicbamGym/",
+            "url": "http://localhost/VicbamGym/",
             "webRoot": "${workspaceFolder}"
         }
     ]
