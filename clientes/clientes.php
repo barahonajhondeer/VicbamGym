@@ -123,32 +123,73 @@ Guardar Cliente
 
 </div>
 
-<div class="tabla-container">
+<div class="tabla-container" data-tabla-buscable>
 
     <h2>CLIENTES REGISTRADOS</h2>
 
-<table>
+    <div class="herramientas-tabla">
+
+    <div class="buscador-tabla">
+
+        <label for="buscarClientes">
+            Buscar cliente
+        </label>
+
+        <input
+            type="search"
+            id="buscarClientes"
+            data-buscador
+            placeholder="Cédula, nombre, correo o teléfono"
+            autocomplete="off">
+
+    </div>
+
+    <span
+        class="contador-resultados"
+        data-contador-resultados>
+    </span>
+
+</div>
+
+<table id="tablaClientes">
+
+    <thead>
 
     <tr>
-        <th>ID</th>
-        <th>Cédula</th>
-        <th>Nombres</th>
-        <th>Apellidos</th>
-        <th>Teléfono</th>
-        <th>Correo</th>
-        <th>Dirección</th>
-        <th>Acciones</th>
+        <th data-ordenable data-tipo="numero"> ID</th>
+        <th data-ordenable>Cédula</th>
+        <th data-ordenable>Nombres</th>
+        <th data-ordenable>Apellidos</th>
+        <th data-ordenable>Teléfono</th>
+        <th data-ordenable>Correo</th>
+        <th data-ordenable>Dirección</th>
+        <th data-ordenable>Acciones</th>
     </tr>
+    </thead>
 
 <?php
+ 
 
 $sql = "SELECT * FROM clientes";
 
 $resultado = mysqli_query($conexion,$sql);
 
+
+
 while($fila = mysqli_fetch_assoc($resultado))
 {
 ?>
+
+<tr
+    data-sin-resultados
+    class="fila-busqueda-vacia"
+    style="display:none;">
+
+    <td colspan="8">
+        No se encontraron clientes.
+    </td>
+
+</tr>
 
 <tr>
 
@@ -190,6 +231,7 @@ Eliminar
 
 </tr>
 
+
 <?php
 }
 ?>
@@ -199,6 +241,8 @@ Eliminar
 </div>
 
 </div>
+
+<script src="../assets/js/tablas.js"></script>
 
 </body>
 

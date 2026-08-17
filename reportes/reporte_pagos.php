@@ -1,100 +1,124 @@
 <?php
 
 require_once("../config/conexion.php");
+require_once("../config/verificar_sesion.php");
 
 /* =================================
    RECIBIR FILTROS
 ================================= */
 
-$fecha_inicio = $_GET['fecha_inicio'] ?? '';
-$fecha_fin = $_GET['fecha_fin'] ?? '';
-
-$condicion = "";
-$parametros = [];
-$tipos = "";
-
-if (!empty($fecha_inicio) && !empty($fecha_fin)) {
-
-    $condicion = " WHERE p.fecha_pago BETWEEN ? AND ? ";
-    $parametros[] = $fecha_inicio;
-    $parametros[] = $fecha_fin;
-    $tipos = "ss";
-}
+$buscar = trim($_GET["buscar"] ?? "");
+$fecha_inicio = $_GET["fecha_inicio"] ?? "";
+$fecha_fin = $_GET["fecha_fin"] ?? "";
+$metodoFiltro = trim($_GET["metodo"] ?? "");
 
 /* =================================
-   CONSULTAR PAGOS
+   CONSULTA BASE
 ================================= */
 
 $sql = "SELECT
             p.id_pago,
+            p.valor,
+            p.metodo_pago,
+            p.fecha_pago,
+
             c.cedula,
             c.nombres,
             c.apellidos,
-            m.tipo,
-            p.valor,
-            p.metodo_pago,
-            p.fecha_pago
+
+            m.tipo
+
         FROM pagos p
+
         INNER JOIN clientes c
             ON p.id_cliente = c.id_cliente
+
         INNER JOIN membresias m
             ON p.id_membresia = m.id_membresia
-        $condicion
-        ORDER BY p.fecha_pago DESC,
-                 p.id_pago DESC";
 
-$stmt = mysqli_prepare($conexion, $sql);
+        WHERE
+            (
+                c.cedula LIKE ?
+                OR c.nombres LIKE ?
+                OR c.apellidos LIKE ?
+                OR CONCAT(c.nombres, ' ', c.apellidos) LIKE ?
+            )
 
-if (!empty($parametros)) {
+            AND (
+                ? = ''
+                OR p.fecha_pago >= ?
+            )
 
-    mysqli_stmt_bind_param(
-        $stmt,
-        $tipos,
-        $parametros[0],
-        $parametros[1]
-    );
-}
+            AND (
+                ? = ''
+                OR p.fecha_pago <= ?
+            )
+
+            AND (
+                ? = ''
+                OR p.metodo_pago = ?
+            )
+
+        ORDER BY
+            p.fecha_pago DESC,
+            p.id_pago DESC";
+
+$textoBuscar = "%" . $buscar . "%";
+
+$stmt = mysqli_prepare(
+    $conexion,
+    $sql
+);
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "ssssssssss",
+
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar,
+
+    $fecha_inicio,
+    $fecha_inicio,
+
+    $fecha_fin,
+    $fecha_fin,
+
+    $metodoFiltro,
+    $metodoFiltro
+);
 
 mysqli_stmt_execute($stmt);
 
 $resultado = mysqli_stmt_get_result($stmt);
 
 if (!$resultado) {
+
     die(
         "Error al consultar los pagos: " .
         mysqli_error($conexion)
     );
 }
 
-$totalPagos = mysqli_num_rows($resultado);
-
 /* =================================
-   TOTAL RECAUDADO
+   GUARDAR RESULTADOS Y TOTALES
 ================================= */
 
-$sqlTotal = "SELECT
-                COALESCE(SUM(p.valor), 0) AS total
-             FROM pagos p
-             $condicion";
+$pagos = [];
 
-$stmtTotal = mysqli_prepare($conexion, $sqlTotal);
+$totalPagos = 0;
+$totalRecaudado = 0;
 
-if (!empty($parametros)) {
+while ($fila = mysqli_fetch_assoc($resultado)) {
 
-    mysqli_stmt_bind_param(
-        $stmtTotal,
-        $tipos,
-        $parametros[0],
-        $parametros[1]
-    );
+    $pagos[] = $fila;
+
+    $totalPagos++;
+
+    $totalRecaudado +=
+        (float) $fila["valor"];
 }
-
-mysqli_stmt_execute($stmtTotal);
-
-$resultadoTotal = mysqli_stmt_get_result($stmtTotal);
-$datosTotal = mysqli_fetch_assoc($resultadoTotal);
-
-$totalRecaudado = $datosTotal['total'] ?? 0;
 
 ?>
 
@@ -109,7 +133,9 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>Reporte de pagos | VICBAMGYM</title>
+    <title>
+        Reporte de Pagos | VICBAMGYM
+    </title>
 
     <link
         rel="stylesheet"
@@ -119,10 +145,18 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
 
 <body class="reportes-body">
 
+<!-- =================================
+     MENÚ SUPERIOR
+================================= -->
+
 <nav class="navbar">
 
     <div class="logo-menu">
-        <h2>VICBAMGYM</h2>
+
+        <h2>
+            VICBAMGYM
+        </h2>
+
     </div>
 
     <ul class="menu">
@@ -161,6 +195,23 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
             </a>
         </li>
 
+        <?php
+
+        if (
+            isset($_SESSION["rol"]) &&
+            $_SESSION["rol"] === "Administrador"
+        ) {
+
+        ?>
+
+            <li>
+                <a href="../usuarios/usuarios.php">
+                    👨‍💼 Usuarios
+                </a>
+            </li>
+
+        <?php } ?>
+
         <li>
             <a href="../logout.php">
                 🚪 Salir
@@ -171,17 +222,29 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
 
 </nav>
 
+<?php
+require_once("../config/notificaciones.php");
+?>
+
+<!-- =================================
+     CONTENIDO
+================================= -->
+
 <main class="reporte-detalle-contenido">
+
+    <!-- ENCABEZADO -->
 
     <section class="encabezado-reporte-detalle">
 
         <div>
 
-            <h1>REPORTE DE PAGOS</h1>
+            <h1>
+                REPORTE DE PAGOS
+            </h1>
 
             <p>
-                Consulte los pagos registrados y filtre
-                los resultados por rango de fechas.
+                Consulte pagos por cliente,
+                rango de fechas y método de pago.
             </p>
 
         </div>
@@ -197,14 +260,14 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
             </a>
 
             <a
-                href="exportar_pagos_pdf.php<?php
-                    echo !empty($fecha_inicio) &&
-                         !empty($fecha_fin)
-                        ? '?fecha_inicio=' .
-                          urlencode($fecha_inicio) .
-                          '&fecha_fin=' .
-                          urlencode($fecha_fin)
-                        : '';
+                href="exportar_pagos_pdf.php?buscar=<?php
+                    echo urlencode($buscar);
+                ?>&fecha_inicio=<?php
+                    echo urlencode($fecha_inicio);
+                ?>&fecha_fin=<?php
+                    echo urlencode($fecha_fin);
+                ?>&metodo=<?php
+                    echo urlencode($metodoFiltro);
                 ?>"
                 class="btn-pdf">
 
@@ -216,37 +279,133 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
 
     </section>
 
-    <!-- FILTROS -->
+    <!-- =================================
+         FILTROS
+    ================================= -->
 
     <section class="filtro-pagos-reporte">
 
-        <form method="GET" action="reporte_pagos.php">
+        <form
+            method="GET"
+            action="reporte_pagos.php">
+
+            <!-- CLIENTE -->
 
             <div class="campo-filtro">
 
-                <label>Fecha inicial</label>
+                <label for="buscar">
+                    Cliente
+                </label>
+
+                <input
+                    type="text"
+                    name="buscar"
+                    id="buscar"
+                    value="<?php
+                        echo htmlspecialchars($buscar);
+                    ?>"
+                    placeholder="Nombre o cédula"
+                    autocomplete="off">
+
+            </div>
+
+            <!-- FECHA INICIAL -->
+
+            <div class="campo-filtro">
+
+                <label for="fecha_inicio">
+                    Fecha inicial
+                </label>
 
                 <input
                     type="date"
                     name="fecha_inicio"
+                    id="fecha_inicio"
                     value="<?php
-                        echo htmlspecialchars($fecha_inicio);
+                        echo htmlspecialchars(
+                            $fecha_inicio
+                        );
                     ?>">
 
             </div>
 
+            <!-- FECHA FINAL -->
+
             <div class="campo-filtro">
 
-                <label>Fecha final</label>
+                <label for="fecha_fin">
+                    Fecha final
+                </label>
 
                 <input
                     type="date"
                     name="fecha_fin"
+                    id="fecha_fin"
                     value="<?php
-                        echo htmlspecialchars($fecha_fin);
+                        echo htmlspecialchars(
+                            $fecha_fin
+                        );
                     ?>">
 
             </div>
+
+            <!-- MÉTODO -->
+
+            <div class="campo-filtro">
+
+                <label for="metodo">
+                    Método de pago
+                </label>
+
+                <select
+                    name="metodo"
+                    id="metodo">
+
+                    <option value="">
+                        Todos
+                    </option>
+
+                    <option
+                        value="Efectivo"
+                        <?php
+                        echo $metodoFiltro === "Efectivo"
+                            ? "selected"
+                            : "";
+                        ?>>
+
+                        Efectivo
+
+                    </option>
+
+                    <option
+                        value="Transferencia"
+                        <?php
+                        echo $metodoFiltro === "Transferencia"
+                            ? "selected"
+                            : "";
+                        ?>>
+
+                        Transferencia
+
+                    </option>
+
+                    <option
+                        value="Tarjeta"
+                        <?php
+                        echo $metodoFiltro === "Tarjeta"
+                            ? "selected"
+                            : "";
+                        ?>>
+
+                        Tarjeta
+
+                    </option>
+
+                </select>
+
+            </div>
+
+            <!-- BOTONES -->
 
             <div class="acciones-filtro">
 
@@ -254,7 +413,7 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
                     type="submit"
                     class="btn-buscar-reporte">
 
-                    Buscar
+                    🔍 Buscar
 
                 </button>
 
@@ -272,38 +431,131 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
 
     </section>
 
-    <!-- RESUMEN -->
+    <!-- =================================
+         RESUMEN
+    ================================= -->
 
     <section class="resumen-pagos-reporte">
 
         <div class="tarjeta-total-reporte">
 
-            <span>Pagos encontrados</span>
+            <span>
+                Pagos encontrados
+            </span>
 
             <strong>
-                <?php echo $totalPagos; ?>
+                <?php
+                echo $totalPagos;
+                ?>
             </strong>
 
         </div>
 
         <div class="tarjeta-ingresos-reporte">
 
-            <span>Total recaudado</span>
+            <span>
+                Total recaudado
+            </span>
 
             <strong>
+
                 $<?php
                 echo number_format(
-                    (float) $totalRecaudado,
+                    $totalRecaudado,
                     2
                 );
                 ?>
+
             </strong>
 
         </div>
 
     </section>
 
-    <!-- TABLA -->
+    <!-- =================================
+         FILTROS ACTIVOS
+    ================================= -->
+
+    <?php
+
+    if (
+        $buscar !== "" ||
+        $fecha_inicio !== "" ||
+        $fecha_fin !== "" ||
+        $metodoFiltro !== ""
+    ) {
+
+    ?>
+
+        <div class="resultado-filtro-reporte">
+
+            Filtros aplicados:
+
+            <?php if ($buscar !== "") { ?>
+
+                <strong>
+                    Cliente:
+                    <?php
+                    echo htmlspecialchars(
+                        $buscar
+                    );
+                    ?>
+                </strong>
+
+            <?php } ?>
+
+            <?php if ($fecha_inicio !== "") { ?>
+
+                <strong>
+                    | Desde:
+                    <?php
+                    echo date(
+                        "d/m/Y",
+                        strtotime(
+                            $fecha_inicio
+                        )
+                    );
+                    ?>
+                </strong>
+
+            <?php } ?>
+
+            <?php if ($fecha_fin !== "") { ?>
+
+                <strong>
+                    | Hasta:
+                    <?php
+                    echo date(
+                        "d/m/Y",
+                        strtotime(
+                            $fecha_fin
+                        )
+                    );
+                    ?>
+                </strong>
+
+            <?php } ?>
+
+            <?php if ($metodoFiltro !== "") { ?>
+
+                <strong>
+                    | Método:
+                    <?php
+                    echo htmlspecialchars(
+                        $metodoFiltro
+                    );
+                    ?>
+                </strong>
+
+            <?php } ?>
+
+        </div>
+
+    <?php } ?>
+
+    <!-- =================================
+         TABLA
+    ================================= -->
 
     <section class="tabla-reporte-container">
 
@@ -316,11 +568,17 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
                     <tr>
 
                         <th>ID</th>
+
                         <th>Cédula</th>
+
                         <th>Cliente</th>
+
                         <th>Membresía</th>
+
                         <th>Valor</th>
+
                         <th>Método</th>
+
                         <th>Fecha</th>
 
                     </tr>
@@ -329,83 +587,124 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
 
                 <tbody>
 
-                <?php if ($totalPagos > 0) { ?>
+                <?php
 
-                    <?php
-                    while (
-                        $pago = mysqli_fetch_assoc($resultado)
-                    ) {
-                    ?>
+                if ($totalPagos > 0) {
+
+                    foreach ($pagos as $pago) {
+
+                ?>
 
                         <tr>
 
-                            <td>
-                                <?php
-                                echo htmlspecialchars(
-                                    $pago['id_pago']
-                                );
-                                ?>
-                            </td>
+                            <!-- ID -->
 
                             <td>
                                 <?php
-                                echo htmlspecialchars(
-                                    $pago['cedula']
-                                );
+                                echo $pago[
+                                    "id_pago"
+                                ];
                                 ?>
                             </td>
 
+                            <!-- CÉDULA -->
+
                             <td>
+
                                 <?php
                                 echo htmlspecialchars(
-                                    $pago['nombres'] .
+                                    $pago["cedula"]
+                                );
+                                ?>
+
+                            </td>
+
+                            <!-- CLIENTE -->
+
+                            <td>
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $pago["nombres"] .
                                     " " .
-                                    $pago['apellidos']
+                                    $pago["apellidos"]
                                 );
+
                                 ?>
+
                             </td>
 
+                            <!-- MEMBRESÍA -->
+
                             <td>
+
                                 <?php
                                 echo htmlspecialchars(
-                                    $pago['tipo']
+                                    $pago["tipo"]
                                 );
                                 ?>
+
                             </td>
 
+                            <!-- VALOR -->
+
                             <td>
+
                                 $<?php
+
                                 echo number_format(
-                                    (float) $pago['valor'],
+                                    (float)
+                                    $pago["valor"],
                                     2
                                 );
+
                                 ?>
+
                             </td>
 
+                            <!-- MÉTODO -->
+
                             <td>
+
                                 <?php
                                 echo htmlspecialchars(
-                                    $pago['metodo_pago']
+                                    $pago[
+                                        "metodo_pago"
+                                    ]
                                 );
                                 ?>
+
                             </td>
 
+                            <!-- FECHA -->
+
                             <td>
+
                                 <?php
+
                                 echo date(
                                     "d/m/Y",
                                     strtotime(
-                                        $pago['fecha_pago']
+                                        $pago[
+                                            "fecha_pago"
+                                        ]
                                     )
                                 );
+
                                 ?>
+
                             </td>
 
                         </tr>
 
-                    <?php } ?>
+                <?php
 
-                <?php } else { ?>
+                    }
+
+                } else {
+
+                ?>
 
                     <tr>
 
@@ -413,8 +712,8 @@ $totalRecaudado = $datosTotal['total'] ?? 0;
                             colspan="7"
                             class="sin-resultados">
 
-                            No existen pagos para el periodo
-                            seleccionado.
+                            No se encontraron pagos
+                            con los filtros seleccionados.
 
                         </td>
 

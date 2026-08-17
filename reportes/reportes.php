@@ -3,6 +3,7 @@
 require_once("../config/conexion.php");
 require_once("../config/verificar_sesion.php");
 
+
 /* ===============================
    OBTENER DATOS PARA EL RESUMEN
 ================================ */

@@ -3,6 +3,8 @@
 require_once("../config/conexion.php");
 require_once("../librerias/fpdf/fpdf.php");
 
+$buscar = trim($_GET["buscar"] ?? "");
+
 /*
 |--------------------------------------------------------------------------
 | Consultar clientes
@@ -19,13 +21,33 @@ $sql = "SELECT
             direccion,
             fecha_registro
         FROM clientes
+        WHERE
+            cedula LIKE ?
+            OR nombres LIKE ?
+            OR apellidos LIKE ?
+            OR telefono LIKE ?
+            OR correo LIKE ?
+            OR direccion LIKE ?
         ORDER BY id_cliente ASC";
 
-$resultado = mysqli_query($conexion, $sql);
+$textoBuscar = "%" . $buscar . "%";
 
-if (!$resultado) {
-    die("Error al consultar los clientes: " . mysqli_error($conexion));
-}
+$stmt = mysqli_prepare($conexion, $sql);
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "ssssss",
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar
+);
+
+mysqli_stmt_execute($stmt);
+
+$resultado = mysqli_stmt_get_result($stmt);
 
 /*
 |--------------------------------------------------------------------------

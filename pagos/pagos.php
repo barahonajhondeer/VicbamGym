@@ -260,29 +260,59 @@ Registrar Pago
 
 <!-- TABLA -->
 
-<div class="tabla-container">
+<div class="tabla-container" data-tabla-buscable>
 
 <h2>PAGOS REGISTRADOS</h2>
 
-<table>
+<div class="herramientas-tabla">
+
+    <div class="buscador-tabla">
+
+        <label for="buscarPagos">
+            Buscar pago
+        </label>
+
+        <input
+            type="search"
+            id="buscarPagos"
+            data-buscador
+            placeholder="Cliente, membresía, método, valor o fecha"
+            autocomplete="off">
+
+    </div>
+
+    <span
+        class="contador-resultados"
+        data-contador-resultados>
+    </span>
+
+</div>
+
+<table id="tablaPagos">
+
+<thead>
 
 <tr>
 
-<th>ID</th>
+<th data-ordenable data-tipo="numero">ID</th>
 
-<th>Cliente</th>
+<th data-ordenable>Cliente</th>
 
-<th>Membresía</th>
+<th data-ordenable>Membresía</th>
 
-<th>Valor</th>
+<th data-ordenable>Valor</th>
 
-<th>Método</th>
+<th data-ordenable>Método</th>
 
-<th>Fecha</th>
+<th data-ordenable>Fecha</th>
 
-<th>Acciones</th>
+<th data-ordenable>Acciones</th>
 
 </tr>
+
+</thead>
+
+<tbody>
 
 <?php
 
@@ -329,11 +359,27 @@ while($fila=mysqli_fetch_assoc($resultado))
 
 <td><?php echo $fila['tipo']; ?></td>
 
-<td>$ <?php echo number_format($fila['valor'],2); ?></td>
+<td data-orden="<?php echo $fila['valor']; ?>">
+    $ <?php 
+    echo number_format(
+        (float) $fila['valor'],
+        2
+    );
+     ?>
+</td>
 
 <td><?php echo $fila['metodo_pago']; ?></td>
 
-<td><?php echo $fila['fecha_pago']; ?></td>
+<td data-orden="<?php echo $fila['fecha_pago']; ?>">
+
+    <?php
+    echo date(
+        "d/m/Y",
+        strtotime($fila['fecha_pago'])
+    );
+    ?>
+
+</td>
 
 <td>
 
@@ -363,6 +409,19 @@ Eliminar
 }
 
 ?>
+
+<tr
+    data-sin-resultados
+    class="fila-busqueda-vacia"
+    style="display:none;">
+
+    <td colspan="7">
+        No se encontraron pagos.
+    </td>
+
+</tr>
+
+</tbody>
 
 </table>
 
@@ -587,6 +646,8 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
+
+<script src="../assets/js/tablas.js"></script>
 
 </body>
 

@@ -1,9 +1,10 @@
 <?php
 
 require_once("../config/conexion.php");
+require_once("../config/verificar_sesion.php");
 
 /* =================================
-   ACTUALIZAR ESTADOS AUTOMÁTICAMENTE
+   ACTUALIZAR ESTADOS
 ================================= */
 
 $sqlActualizar = "UPDATE membresias
@@ -14,7 +15,15 @@ $sqlActualizar = "UPDATE membresias
 mysqli_query($conexion, $sqlActualizar);
 
 /* =================================
-   CONSULTAR MEMBRESÍAS
+   RECIBIR FILTROS
+================================= */
+
+$buscar = trim($_GET["buscar"] ?? "");
+$tipoFiltro = trim($_GET["tipo"] ?? "");
+$estadoFiltro = trim($_GET["estado"] ?? "");
+
+/* =================================
+   CONSULTA FILTRADA
 ================================= */
 
 $sql = "SELECT
@@ -30,38 +39,67 @@ $sql = "SELECT
         FROM membresias m
         INNER JOIN clientes c
             ON m.id_cliente = c.id_cliente
+        WHERE
+            (
+                c.cedula LIKE ?
+                OR c.nombres LIKE ?
+                OR c.apellidos LIKE ?
+                OR CONCAT(c.nombres, ' ', c.apellidos) LIKE ?
+            )
+            AND (? = '' OR m.tipo = ?)
+            AND (? = '' OR m.estado = ?)
         ORDER BY m.id_membresia DESC";
 
-$resultado = mysqli_query($conexion, $sql);
+$textoBuscar = "%" . $buscar . "%";
+
+$stmt = mysqli_prepare($conexion, $sql);
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "ssssssss",
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar,
+    $tipoFiltro,
+    $tipoFiltro,
+    $estadoFiltro,
+    $estadoFiltro
+);
+
+mysqli_stmt_execute($stmt);
+
+$resultado = mysqli_stmt_get_result($stmt);
 
 if (!$resultado) {
     die(
-        "Error al consultar las membresías: " .
+        "Error al consultar membresías: " .
         mysqli_error($conexion)
     );
 }
 
-$totalMembresias = mysqli_num_rows($resultado);
+/* Guardamos los registros para poder contar y luego mostrar */
 
-/* =================================
-   CONTADORES
-================================= */
+$membresias = [];
 
-$sqlActivas = "SELECT COUNT(*) AS total
-               FROM membresias
-               WHERE estado = 'Activa'";
+$totalMembresias = 0;
+$totalActivas = 0;
+$totalVencidas = 0;
 
-$resultadoActivas = mysqli_query($conexion, $sqlActivas);
-$datosActivas = mysqli_fetch_assoc($resultadoActivas);
-$totalActivas = $datosActivas['total'] ?? 0;
+while ($fila = mysqli_fetch_assoc($resultado)) {
 
-$sqlVencidas = "SELECT COUNT(*) AS total
-                FROM membresias
-                WHERE estado = 'Vencida'";
+    $membresias[] = $fila;
 
-$resultadoVencidas = mysqli_query($conexion, $sqlVencidas);
-$datosVencidas = mysqli_fetch_assoc($resultadoVencidas);
-$totalVencidas = $datosVencidas['total'] ?? 0;
+    $totalMembresias++;
+
+    if ($fila["estado"] === "Activa") {
+        $totalActivas++;
+    }
+
+    if ($fila["estado"] === "Vencida") {
+        $totalVencidas++;
+    }
+}
 
 ?>
 
@@ -76,7 +114,9 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>Reporte de membresías | VICBAMGYM</title>
+    <title>
+        Reporte de Membresías | VICBAMGYM
+    </title>
 
     <link
         rel="stylesheet"
@@ -86,9 +126,9 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
 
 <body class="reportes-body">
 
-<!-- ===============================
-     MENÚ SUPERIOR
-================================ -->
+<!-- =================================
+     MENÚ
+================================= -->
 
 <nav class="navbar">
 
@@ -132,6 +172,21 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
             </a>
         </li>
 
+        <?php
+        if (
+            isset($_SESSION["rol"]) &&
+            $_SESSION["rol"] === "Administrador"
+        ) {
+        ?>
+
+            <li>
+                <a href="../usuarios/usuarios.php">
+                    👨‍💼 Usuarios
+                </a>
+            </li>
+
+        <?php } ?>
+
         <li>
             <a href="../logout.php">
                 🚪 Salir
@@ -142,21 +197,29 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
 
 </nav>
 
-<!-- ===============================
-     CONTENIDO PRINCIPAL
-================================ -->
+<?php
+require_once("../config/notificaciones.php");
+?>
+
+<!-- =================================
+     CONTENIDO
+================================= -->
 
 <main class="reporte-detalle-contenido">
+
+    <!-- ENCABEZADO -->
 
     <section class="encabezado-reporte-detalle">
 
         <div>
 
-            <h1>REPORTE DE MEMBRESÍAS</h1>
+            <h1>
+                REPORTE DE MEMBRESÍAS
+            </h1>
 
             <p>
-                Estado, fechas y valores de las membresías
-                registradas en VICBAMGYM.
+                Consulte las membresías registradas
+                según cliente, tipo o estado.
             </p>
 
         </div>
@@ -172,7 +235,13 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
             </a>
 
             <a
-                href="exportar_membresias_pdf.php"
+                href="exportar_membresias_pdf.php?buscar=<?php
+                    echo urlencode($buscar);
+                ?>&tipo=<?php
+                    echo urlencode($tipoFiltro);
+                ?>&estado=<?php
+                    echo urlencode($estadoFiltro);
+                ?>"
                 class="btn-pdf">
 
                 📄 Exportar PDF
@@ -183,47 +252,286 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
 
     </section>
 
-    <!-- ===============================
-         RESUMEN
-    ================================ -->
+    <!-- =================================
+         FILTROS
+    ================================= -->
+
+    <section class="filtro-pagos-reporte">
+
+        <form
+            method="GET"
+            action="reporte_membresias.php">
+
+            <!-- BUSCAR CLIENTE -->
+
+            <div class="campo-filtro">
+
+                <label for="buscar">
+                    Cliente
+                </label>
+
+                <input
+                    type="text"
+                    name="buscar"
+                    id="buscar"
+                    value="<?php
+                        echo htmlspecialchars($buscar);
+                    ?>"
+                    placeholder="Nombre o cédula"
+                    autocomplete="off">
+
+            </div>
+
+            <!-- TIPO -->
+
+            <div class="campo-filtro">
+
+                <label for="tipo">
+                    Tipo
+                </label>
+
+                <select
+                    name="tipo"
+                    id="tipo">
+
+                    <option value="">
+                        Todos
+                    </option>
+
+                    <option
+                        value="Mensual"
+                        <?php
+                        echo $tipoFiltro === "Mensual"
+                            ? "selected"
+                            : "";
+                        ?>>
+
+                        Mensual
+
+                    </option>
+
+                    <option
+                        value="Trimestral"
+                        <?php
+                        echo $tipoFiltro === "Trimestral"
+                            ? "selected"
+                            : "";
+                        ?>>
+
+                        Trimestral
+
+                    </option>
+
+                    <option
+                        value="Semestral"
+                        <?php
+                        echo $tipoFiltro === "Semestral"
+                            ? "selected"
+                            : "";
+                        ?>>
+
+                        Semestral
+
+                    </option>
+
+                    <option
+                        value="Anual"
+                        <?php
+                        echo $tipoFiltro === "Anual"
+                            ? "selected"
+                            : "";
+                        ?>>
+
+                        Anual
+
+                    </option>
+
+                </select>
+
+            </div>
+
+            <!-- ESTADO -->
+
+            <div class="campo-filtro">
+
+                <label for="estado">
+                    Estado
+                </label>
+
+                <select
+                    name="estado"
+                    id="estado">
+
+                    <option value="">
+                        Todos
+                    </option>
+
+                    <option
+                        value="Activa"
+                        <?php
+                        echo $estadoFiltro === "Activa"
+                            ? "selected"
+                            : "";
+                        ?>>
+
+                        Activa
+
+                    </option>
+
+                    <option
+                        value="Vencida"
+                        <?php
+                        echo $estadoFiltro === "Vencida"
+                            ? "selected"
+                            : "";
+                        ?>>
+
+                        Vencida
+
+                    </option>
+
+                </select>
+
+            </div>
+
+            <!-- BOTONES -->
+
+            <div class="acciones-filtro">
+
+                <button
+                    type="submit"
+                    class="btn-buscar-reporte">
+
+                    🔍 Buscar
+
+                </button>
+
+                <a
+                    href="reporte_membresias.php"
+                    class="btn-limpiar-reporte">
+
+                    Limpiar
+
+                </a>
+
+            </div>
+
+        </form>
+
+    </section>
+
+    <!-- =================================
+         CONTADORES
+    ================================= -->
 
     <section class="resumen-membresias-reporte">
 
+        <!-- TOTAL -->
+
         <div class="tarjeta-total-reporte">
 
-            <span>Total de membresías</span>
+            <span>
+                Total de membresías
+            </span>
 
             <strong>
-                <?php echo $totalMembresias; ?>
+                <?php
+                echo $totalMembresias;
+                ?>
             </strong>
 
         </div>
+
+        <!-- ACTIVAS -->
 
         <div class="tarjeta-estado-reporte activa">
 
-            <span>Membresías activas</span>
+            <span>
+                Membresías activas
+            </span>
 
             <strong>
-                <?php echo $totalActivas; ?>
+                <?php
+                echo $totalActivas;
+                ?>
             </strong>
 
         </div>
 
+        <!-- VENCIDAS -->
+
         <div class="tarjeta-estado-reporte vencida">
 
-            <span>Membresías vencidas</span>
+            <span>
+                Membresías vencidas
+            </span>
 
             <strong>
-                <?php echo $totalVencidas; ?>
+                <?php
+                echo $totalVencidas;
+                ?>
             </strong>
 
         </div>
 
     </section>
 
-    <!-- ===============================
+    <!-- MOSTRAR FILTROS ACTIVOS -->
+
+    <?php
+
+    if (
+        $buscar !== "" ||
+        $tipoFiltro !== "" ||
+        $estadoFiltro !== ""
+    ) {
+
+    ?>
+
+        <div class="resultado-filtro-reporte">
+
+            Filtros aplicados:
+
+            <?php if ($buscar !== "") { ?>
+
+                <strong>
+                    Cliente:
+                    <?php
+                    echo htmlspecialchars($buscar);
+                    ?>
+                </strong>
+
+            <?php } ?>
+
+            <?php if ($tipoFiltro !== "") { ?>
+
+                <strong>
+                    | Tipo:
+                    <?php
+                    echo htmlspecialchars($tipoFiltro);
+                    ?>
+                </strong>
+
+            <?php } ?>
+
+            <?php if ($estadoFiltro !== "") { ?>
+
+                <strong>
+                    | Estado:
+                    <?php
+                    echo htmlspecialchars($estadoFiltro);
+                    ?>
+                </strong>
+
+            <?php } ?>
+
+        </div>
+
+    <?php } ?>
+
+    <!-- =================================
          TABLA
-    ================================ -->
+    ================================= -->
 
     <section class="tabla-reporte-container">
 
@@ -236,12 +544,19 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
                     <tr>
 
                         <th>ID</th>
+
                         <th>Cédula</th>
+
                         <th>Cliente</th>
+
                         <th>Tipo</th>
+
                         <th>Valor</th>
-                        <th>Fecha de inicio</th>
-                        <th>Fecha de fin</th>
+
+                        <th>Fecha inicio</th>
+
+                        <th>Fecha fin</th>
+
                         <th>Estado</th>
 
                     </tr>
@@ -250,99 +565,154 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
 
                 <tbody>
 
-                <?php if ($totalMembresias > 0) { ?>
+                <?php
 
-                    <?php
-                    while (
-                        $membresia =
-                        mysqli_fetch_assoc($resultado)
+                if ($totalMembresias > 0) {
+
+                    foreach (
+                        $membresias as $membresia
                     ) {
-                    ?>
+
+                ?>
 
                         <tr>
 
-                            <td>
-                                <?php
-                                echo htmlspecialchars(
-                                    $membresia['id_membresia']
-                                );
-                                ?>
-                            </td>
+                            <!-- ID -->
 
                             <td>
+
                                 <?php
-                                echo htmlspecialchars(
-                                    $membresia['cedula']
-                                );
+                                echo $membresia[
+                                    "id_membresia"
+                                ];
                                 ?>
+
                             </td>
 
+                            <!-- CÉDULA -->
+
                             <td>
+
                                 <?php
                                 echo htmlspecialchars(
-                                    $membresia['nombres'] .
+                                    $membresia["cedula"]
+                                );
+                                ?>
+
+                            </td>
+
+                            <!-- CLIENTE -->
+
+                            <td>
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $membresia["nombres"] .
                                     " " .
-                                    $membresia['apellidos']
+                                    $membresia["apellidos"]
                                 );
+
                                 ?>
+
                             </td>
 
+                            <!-- TIPO -->
+
                             <td>
+
                                 <?php
                                 echo htmlspecialchars(
-                                    $membresia['tipo']
+                                    $membresia["tipo"]
                                 );
                                 ?>
+
                             </td>
 
+                            <!-- VALOR -->
+
                             <td>
+
                                 $<?php
                                 echo number_format(
-                                    (float) $membresia['valor'],
+                                    (float)
+                                    $membresia["valor"],
                                     2
                                 );
                                 ?>
+
                             </td>
 
+                            <!-- INICIO -->
+
                             <td>
+
                                 <?php
+
                                 echo date(
                                     "d/m/Y",
                                     strtotime(
-                                        $membresia['fecha_inicio']
+                                        $membresia[
+                                            "fecha_inicio"
+                                        ]
                                     )
                                 );
+
                                 ?>
+
                             </td>
 
+                            <!-- FIN -->
+
                             <td>
+
                                 <?php
+
                                 echo date(
                                     "d/m/Y",
                                     strtotime(
-                                        $membresia['fecha_fin']
+                                        $membresia[
+                                            "fecha_fin"
+                                        ]
                                     )
                                 );
+
                                 ?>
+
                             </td>
+
+                            <!-- ESTADO -->
 
                             <td>
 
                                 <?php
+
                                 if (
-                                    $membresia['estado'] ===
-                                    'Activa'
+                                    $membresia[
+                                        "estado"
+                                    ] === "Activa"
                                 ) {
+
                                 ?>
 
-                                    <span class="estado-activa">
+                                    <span
+                                        class="estado-activa">
+
                                         🟢 Activa
+
                                     </span>
 
-                                <?php } else { ?>
+                                <?php
 
-                                    <span class="estado-vencida">
+                                } else {
+
+                                ?>
+
+                                    <span
+                                        class="estado-vencida">
+
                                         🔴 Vencida
+
                                     </span>
 
                                 <?php } ?>
@@ -351,9 +721,13 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
 
                         </tr>
 
-                    <?php } ?>
+                <?php
 
-                <?php } else { ?>
+                    }
+
+                } else {
+
+                ?>
 
                     <tr>
 
@@ -361,7 +735,9 @@ $totalVencidas = $datosVencidas['total'] ?? 0;
                             colspan="8"
                             class="sin-resultados">
 
-                            No existen membresías registradas.
+                            No se encontraron
+                            membresías con los filtros
+                            seleccionados.
 
                         </td>
 
