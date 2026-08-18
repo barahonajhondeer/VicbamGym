@@ -288,6 +288,8 @@ Registrar Pago
 
 </div>
 
+<div class="tabla-responsive">
+
 <table id="tablaPagos">
 
 <thead>
@@ -424,6 +426,8 @@ Eliminar
 </tbody>
 
 </table>
+
+</div>
 
 </div>
 

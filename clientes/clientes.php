@@ -151,6 +151,8 @@ Guardar Cliente
 
 </div>
 
+<div class="tabla-responsive">
+
 <table id="tablaClientes">
 
     <thead>
@@ -237,6 +239,8 @@ Eliminar
 ?>
 
 </table>
+
+</div>
 
 </div>
 

@@ -1942,3 +1942,83 @@ th[data-ordenable].orden-desc::after{
 .resultado-filtro-reporte strong{
     color:#ffffff;
 }
+/* =================================
+   SCROLL PRÓXIMAS A VENCER
+================================= */
+
+.alertas-dashboard{
+    max-height: 475px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Scroll personalizado */
+
+.alertas-dashboard::-webkit-scrollbar{
+    width: 8px;
+}
+
+.alertas-dashboard::-webkit-scrollbar-track{
+    background: #1a1a1a;
+    border-radius: 10px;
+}
+
+.alertas-dashboard::-webkit-scrollbar-thumb{
+    background: #ff0000;
+    border-radius: 10px;
+}
+
+.alertas-dashboard::-webkit-scrollbar-thumb:hover{
+    background: #cc0000;
+}
+
+/* =================================
+   SCROLL SOLO PARA LA TABLA
+================================= */
+
+.tabla-container{
+    overflow: visible;
+    max-height: none;
+}
+
+/* Zona desplazable */
+
+.tabla-responsive{
+    max-height: 430px;
+
+    overflow-y: auto;
+    overflow-x: auto;
+
+    border-radius: 8px;
+}
+
+/* Scroll personalizado */
+
+.tabla-responsive::-webkit-scrollbar{
+    width: 9px;
+    height: 9px;
+}
+
+.tabla-responsive::-webkit-scrollbar-track{
+    background: #151515;
+}
+
+.tabla-responsive::-webkit-scrollbar-thumb{
+    background: #ff0000;
+    border-radius: 10px;
+}
+
+.tabla-responsive::-webkit-scrollbar-thumb:hover{
+    background: #cc0000;
+}
+
+/* Encabezado fijo */
+
+.tabla-responsive table thead th{
+    position: sticky;
+    top: 0;
+    z-index: 5;
+
+    background: #d40000;
+    color: white;
+}
