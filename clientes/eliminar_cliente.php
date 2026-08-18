@@ -1,46 +1,122 @@
 <?php
 
-require_once("../config/conexion.php");
 require_once("../config/verificar_sesion.php");
+require_once("../config/conexion.php");
 
 if ($_SESSION["rol"] !== "Administrador") {
+    header("Location: clientes.php");
+    exit();
+}
 
-    echo "<script>
-        alert('No tiene permisos para realizar esta acción.');
-        window.location='clientes.php';
-    </script>";
+$id_cliente = (int) ($_GET["id"] ?? 0);
+
+if ($id_cliente <= 0) {
+    header(
+        "Location: clientes.php?tipo=advertencia&mensaje=" .
+        urlencode("Cliente no válido.")
+    );
+    exit();
+}
+
+/* =========================
+   VERIFICAR MEMBRESÍAS
+========================= */
+
+$sql = "SELECT COUNT(*) AS total
+        FROM membresias
+        WHERE id_cliente = ?";
+
+$stmt = mysqli_prepare($conexion, $sql);
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "i",
+    $id_cliente
+);
+
+mysqli_stmt_execute($stmt);
+
+$resultado = mysqli_stmt_get_result($stmt);
+$datos = mysqli_fetch_assoc($resultado);
+
+if ((int) $datos["total"] > 0) {
+
+    header(
+        "Location: clientes.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "No se puede eliminar el cliente porque posee membresías registradas."
+        )
+    );
 
     exit();
 }
 
-$id=$_GET['id'];
+/* =========================
+   VERIFICAR PAGOS
+========================= */
 
-$sqlEliminar="DELETE FROM clientes
-WHERE id_cliente='$id'";
+$sql = "SELECT COUNT(*) AS total
+        FROM pagos
+        WHERE id_cliente = ?";
 
-mysqli_query($conexion,$sql);
+$stmt = mysqli_prepare($conexion, $sql);
 
-header("Location: clientes.php");
+mysqli_stmt_bind_param(
+    $stmt,
+    "i",
+    $id_cliente
+);
 
-if(mysqli_query($conexion,$sqlEliminar))
-{
+mysqli_stmt_execute($stmt);
+
+$resultado = mysqli_stmt_get_result($stmt);
+$datos = mysqli_fetch_assoc($resultado);
+
+if ((int) $datos["total"] > 0) {
+
     header(
-        "Location: pagos.php?tipo=exito&mensaje=" .
+        "Location: clientes.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "No se puede eliminar el cliente porque posee pagos registrados."
+        )
+    );
+
+    exit();
+}
+
+/* =========================
+   ELIMINAR
+========================= */
+
+$sql = "DELETE FROM clientes
+        WHERE id_cliente = ?";
+
+$stmt = mysqli_prepare(
+    $conexion,
+    $sql
+);
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "i",
+    $id_cliente
+);
+
+if (mysqli_stmt_execute($stmt)) {
+
+    header(
+        "Location: clientes.php?tipo=exito&mensaje=" .
         urlencode("Cliente eliminado correctamente.")
     );
-    
-    exit();;
-}
-else
-{
+
+} else {
+
     header(
-        "Location: pagos.php?tipo=error&mensaje=" .
-        urlencode("No se pudo eliminar el Cliente.")
+        "Location: clientes.php?tipo=error&mensaje=" .
+        urlencode("No se pudo eliminar el cliente.")
     );
-    
-    exit();
 }
+
+exit();
 
 ?>
-
-

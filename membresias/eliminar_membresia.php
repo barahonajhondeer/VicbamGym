@@ -1,63 +1,94 @@
 <?php
 
+require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
 
-// Verificar que llegue el ID
-if(!isset($_GET['id']))
-{
-    echo "<script>
+if ($_SESSION["rol"] !== "Administrador") {
+    header("Location: membresias.php");
+    exit();
+}
 
-    alert('No se recibió el identificador de la membresía.');
+$id_membresia = (int) ($_GET["id"] ?? 0);
 
-    window.location='membresias.php';
+if ($id_membresia <= 0) {
 
-    </script>";
+    header(
+        "Location: membresias.php?tipo=advertencia&mensaje=" .
+        urlencode("Membresía no válida.")
+    );
 
     exit();
 }
 
-$id = $_GET['id'];
+/* =========================
+   VERIFICAR PAGOS
+========================= */
 
-// Verificar que exista la membresía
+$sql = "SELECT COUNT(*) AS total
+        FROM pagos
+        WHERE id_membresia = ?";
 
-$sql = "SELECT * FROM membresias
-WHERE id_membresia='$id'";
+$stmt = mysqli_prepare(
+    $conexion,
+    $sql
+);
 
-$resultado = mysqli_query($conexion,$sql);
+mysqli_stmt_bind_param(
+    $stmt,
+    "i",
+    $id_membresia
+);
 
-if(mysqli_num_rows($resultado)==0)
-{
-    echo "<script>
+mysqli_stmt_execute($stmt);
 
-    alert('La membresía no existe.');
+$resultado = mysqli_stmt_get_result($stmt);
+$datos = mysqli_fetch_assoc($resultado);
 
-    window.location='membresias.php';
+if ((int) $datos["total"] > 0) {
 
-    </script>";
+    header(
+        "Location: membresias.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "No se puede eliminar la membresía porque posee pagos registrados."
+        )
+    );
 
     exit();
 }
 
-// Eliminar
+/* =========================
+   ELIMINAR
+========================= */
 
-$sqlEliminar = "DELETE FROM membresias
-WHERE id_membresia='$id'";
+$sql = "DELETE FROM membresias
+        WHERE id_membresia = ?";
 
-if(mysqli_query($conexion,$sqlEliminar))
-{
+$stmt = mysqli_prepare(
+    $conexion,
+    $sql
+);
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "i",
+    $id_membresia
+);
+
+if (mysqli_stmt_execute($stmt)) {
+
     header(
         "Location: membresias.php?tipo=exito&mensaje=" .
         urlencode("Membresía eliminada correctamente.")
     );
-    exit();
-}
-else
-{
+
+} else {
+
     header(
-        "Location: membresias.php?tipo=exito&mensaje=" .
-        urlencode("Membresía eliminada correctamente.")
+        "Location: membresias.php?tipo=error&mensaje=" .
+        urlencode("No se pudo eliminar la membresía.")
     );
-    exit();
 }
+
+exit();
 
 ?>
