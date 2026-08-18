@@ -169,7 +169,7 @@ if (!$usuarioDatos) {
                     type="password"
                     name="password"
                     minlength="6"
-                    placeholder="Deje vacío para conservarla">
+                    placeholder="Deje vacío para conservar la contraseña actual">
 
             </div>
 

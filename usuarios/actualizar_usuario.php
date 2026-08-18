@@ -4,11 +4,17 @@ require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
 
 if ($_SESSION["rol"] !== "Administrador") {
-    header("Location: ../dashboard.php");
+
+    header(
+        "Location: ../dashboard.php?tipo=error&mensaje=" .
+        urlencode("No tiene permisos para realizar esta acción.")
+    );
+
     exit();
 }
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+
     header("Location: usuarios.php");
     exit();
 }
@@ -23,21 +29,23 @@ $rolesPermitidos = [
     "Recepcionista"
 ];
 
+/* VALIDACIONES */
+
 if (
     $id_usuario <= 0 ||
     $usuario === "" ||
     !in_array($rol, $rolesPermitidos, true)
 ) {
 
-    echo "<script>
-        alert('Los datos ingresados no son válidos.');
-        window.location='usuarios.php';
-    </script>";
+    header(
+        "Location: usuarios.php?tipo=advertencia&mensaje=" .
+        urlencode("Los datos ingresados no son válidos.")
+    );
 
     exit();
 }
 
-/* Verificar usuario repetido */
+/* VALIDAR USUARIO REPETIDO */
 
 $sqlDuplicado = "SELECT id_usuario
                  FROM usuarios
@@ -59,33 +67,45 @@ mysqli_stmt_bind_param(
 
 mysqli_stmt_execute($stmtDuplicado);
 
-$resultadoDuplicado = mysqli_stmt_get_result(
-    $stmtDuplicado
-);
+$resultadoDuplicado =
+    mysqli_stmt_get_result($stmtDuplicado);
 
 if (mysqli_num_rows($resultadoDuplicado) > 0) {
 
     header(
-        "Location: usuarios.php?tipo=advertencia&mensaje=" .
-        urlencode("El nombre de usuario ya existe.")
-        );
-        
-        exit();
+        "Location: editar_usuario.php?id=" .
+        $id_usuario .
+        "&tipo=advertencia&mensaje=" .
+        urlencode(
+            "El nombre de usuario ya se encuentra registrado."
+        )
+    );
+
+    exit();
 }
 
-/* Actualizar con o sin contraseña */
+/* SI SE INGRESÓ NUEVA CONTRASEÑA */
 
 if ($password !== "") {
 
     if (strlen($password) < 6) {
 
-        echo "<script>
-            alert('La contraseña debe tener al menos 6 caracteres.');
-            window.location='editar_usuario.php?id=$id_usuario';
-        </script>";
+        header(
+            "Location: editar_usuario.php?id=" .
+            $id_usuario .
+            "&tipo=advertencia&mensaje=" .
+            urlencode(
+                "La contraseña debe tener al menos 6 caracteres."
+            )
+        );
 
         exit();
     }
+
+    $passwordHash = password_hash(
+        $password,
+        PASSWORD_DEFAULT
+    );
 
     $sql = "UPDATE usuarios
             SET usuario = ?,
@@ -93,25 +113,33 @@ if ($password !== "") {
                 rol = ?
             WHERE id_usuario = ?";
 
-    $stmt = mysqli_prepare($conexion, $sql);
+    $stmt = mysqli_prepare(
+        $conexion,
+        $sql
+    );
 
     mysqli_stmt_bind_param(
         $stmt,
         "sssi",
         $usuario,
-        $password,
+        $passwordHash,
         $rol,
         $id_usuario
     );
 
 } else {
 
+    /* CONSERVAR CONTRASEÑA ACTUAL */
+
     $sql = "UPDATE usuarios
             SET usuario = ?,
                 rol = ?
             WHERE id_usuario = ?";
 
-    $stmt = mysqli_prepare($conexion, $sql);
+    $stmt = mysqli_prepare(
+        $conexion,
+        $sql
+    );
 
     mysqli_stmt_bind_param(
         $stmt,
@@ -122,12 +150,9 @@ if ($password !== "") {
     );
 }
 
-if (mysqli_stmt_execute($stmt)) {
+/* EJECUTAR */
 
-    /*
-    Si el administrador editó su propio usuario,
-    actualizamos también la sesión.
-    */
+if (mysqli_stmt_execute($stmt)) {
 
     if (
         $id_usuario ===
@@ -140,21 +165,23 @@ if (mysqli_stmt_execute($stmt)) {
 
     header(
         "Location: usuarios.php?tipo=exito&mensaje=" .
-        urlencode("Usuario actualizado correctamente.")
-        );
-        
-        exit();
+        urlencode(
+            "Usuario actualizado correctamente."
+        )
+    );
+
+    exit();
 
 } else {
 
     header(
         "Location: usuarios.php?tipo=error&mensaje=" .
-        urlencode("No se pudo actualizar el usuario.")
-        );
-        
-        exit();
-}
+        urlencode(
+            "No se pudo actualizar el usuario."
+        )
+    );
 
-mysqli_stmt_close($stmt);
+    exit();
+}
 
 ?>
