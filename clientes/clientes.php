@@ -209,24 +209,27 @@ while($fila = mysqli_fetch_assoc($resultado))
 
     <td><?php echo $fila['direccion']; ?></td>
 
-    <td>
+    <td class="acciones-cliente">
 
- <a href="historial_cliente.php?id=<?php echo $fila['id_cliente']; ?>"  class="btn-historial">
+<a href="historial_cliente.php?id=<?php echo $fila['id_cliente']; ?>"
+   class="btn-historial">
     Historial
-
 </a>
 
-<a href="editar_cliente.php?id=<?php echo $fila['id_cliente']; ?>" class="btn-editar">
+<a href="editar_cliente.php?id=<?php echo $fila['id_cliente']; ?>"
+   class="btn-editar">
     Editar
 </a>
 
-<a
-href="eliminar_cliente.php?id=<?php echo $fila['id_cliente']; ?>"
-class="btn-eliminar"
-onclick="return confirm('¿Está seguro de eliminar este cliente?');">
+<a href="asignar_acceso.php?id_cliente=<?php echo $fila['id_cliente']; ?>"
+   class="btn-acceso">
+    Acceso
+</a>
 
-Eliminar
-
+<a href="eliminar_cliente.php?id=<?php echo $fila['id_cliente']; ?>"
+   class="btn-eliminar"
+   onclick="return confirm('¿Está seguro de eliminar este cliente?');">
+    Eliminar
 </a>
 
 </td>
