@@ -4,33 +4,41 @@ require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
 require_once("../config/csrf.php");
 
+
 /* =========================================
    CONSULTAR CLIENTES
 ========================================= */
 
-$sql = "SELECT
-            id_cliente,
-            cedula,
-            nombres,
-            apellidos,
-            telefono,
-            correo,
-            direccion,
-            fecha_registro,
-            estado
-        FROM clientes
-        ORDER BY id_cliente DESC";
+$sql = "
+    SELECT
+        id_cliente,
+        cedula,
+        nombres,
+        apellidos,
+        telefono,
+        correo,
+        direccion,
+        fecha_registro,
+        estado
+    FROM clientes
+    ORDER BY id_cliente DESC
+";
 
 $resultado = mysqli_query(
     $conexion,
     $sql
 );
 
+
 if (!$resultado) {
 
-    die(
-        "Error al consultar los clientes: " .
+    error_log(
+        "Error al consultar clientes: " .
         mysqli_error($conexion)
+    );
+
+    die(
+        "No se pudo cargar la información de los clientes."
     );
 }
 
@@ -46,7 +54,8 @@ if (!$resultado) {
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0">
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>
         Clientes | VICBAMGYM
@@ -54,11 +63,14 @@ if (!$resultado) {
 
     <link
         rel="stylesheet"
-        href="../assets/css/styles.css">
+        href="../assets/css/styles.css"
+    >
 
 </head>
 
+
 <body>
+
 
 <!-- =========================================
      MENÚ
@@ -74,6 +86,7 @@ if (!$resultado) {
 
     </div>
 
+
     <ul class="menu">
 
         <li>
@@ -86,17 +99,20 @@ if (!$resultado) {
 
         </li>
 
+
         <li>
 
             <a
                 href="clientes.php"
-                class="menu-activo">
+                class="menu-activo"
+            >
 
                 👥 Clientes
 
             </a>
 
         </li>
+
 
         <li>
 
@@ -108,6 +124,7 @@ if (!$resultado) {
 
         </li>
 
+
         <li>
 
             <a href="../pagos/pagos.php">
@@ -118,6 +135,7 @@ if (!$resultado) {
 
         </li>
 
+
         <li>
 
             <a href="../reportes/reportes.php">
@@ -127,6 +145,7 @@ if (!$resultado) {
             </a>
 
         </li>
+
 
         <?php
 
@@ -153,6 +172,7 @@ if (!$resultado) {
 
         ?>
 
+
         <li>
 
             <a href="../logout.php">
@@ -167,8 +187,10 @@ if (!$resultado) {
 
 </nav>
 
+
+
 <!-- =========================================
-     NOTIFICACIONES TOAST
+     NOTIFICACIONES
 ========================================= -->
 
 <?php
@@ -177,11 +199,14 @@ require_once("../config/notificaciones.php");
 
 ?>
 
+
+
 <!-- =========================================
      CONTENIDO PRINCIPAL
 ========================================= -->
 
 <div class="contenedor-principal">
+
 
     <!-- =====================================
          FORMULARIO REGISTRO
@@ -193,10 +218,14 @@ require_once("../config/notificaciones.php");
             REGISTRO DE CLIENTES
         </h2>
 
+
         <form
             action="guardar_cliente.php"
-            method="POST">
+            method="POST"
+        >
+
             <?php echo csrf_field(); ?>
+
 
             <!-- CÉDULA -->
 
@@ -208,17 +237,27 @@ require_once("../config/notificaciones.php");
 
                 </label>
 
+
                 <input
                     type="text"
                     name="cedula"
                     id="cedula"
+
                     maxlength="10"
                     minlength="10"
+
                     pattern="[0-9]{10}"
+
+                    inputmode="numeric"
+
                     placeholder="10 dígitos"
-                    required>
+
+                    required
+                >
 
             </div>
+
+
 
             <!-- NOMBRES -->
 
@@ -230,14 +269,20 @@ require_once("../config/notificaciones.php");
 
                 </label>
 
+
                 <input
                     type="text"
                     name="nombres"
                     id="nombres"
+
                     maxlength="100"
-                    required>
+
+                    required
+                >
 
             </div>
+
+
 
             <!-- APELLIDOS -->
 
@@ -249,14 +294,20 @@ require_once("../config/notificaciones.php");
 
                 </label>
 
+
                 <input
                     type="text"
                     name="apellidos"
                     id="apellidos"
+
                     maxlength="100"
-                    required>
+
+                    required
+                >
 
             </div>
+
+
 
             <!-- TELÉFONO -->
 
@@ -268,16 +319,26 @@ require_once("../config/notificaciones.php");
 
                 </label>
 
+
                 <input
                     type="text"
                     name="telefono"
                     id="telefono"
-                    maxlength="10"
-                    pattern="[0-9]{10}"
-                    placeholder="10 dígitos"
-                    required>
+
+                    maxlength="15"
+
+                    pattern="[0-9]{7,15}"
+
+                    inputmode="numeric"
+
+                    placeholder="Número de teléfono"
+
+                    required
+                >
 
             </div>
+
+
 
             <!-- CORREO -->
 
@@ -289,15 +350,22 @@ require_once("../config/notificaciones.php");
 
                 </label>
 
+
                 <input
                     type="email"
                     name="correo"
                     id="correo"
-                    maxlength="120"
+
+                    maxlength="150"
+
                     placeholder="ejemplo@correo.com"
-                    required>
+
+                    required
+                >
 
             </div>
+
+
 
             <!-- DIRECCIÓN -->
 
@@ -309,20 +377,27 @@ require_once("../config/notificaciones.php");
 
                 </label>
 
+
                 <input
                     type="text"
                     name="direccion"
                     id="direccion"
-                    maxlength="150"
-                    required>
+
+                    maxlength="255"
+
+                    required
+                >
 
             </div>
+
+
 
             <!-- GUARDAR -->
 
             <button
                 type="submit"
-                class="btn-guardar">
+                class="btn-guardar"
+            >
 
                 Guardar Cliente
 
@@ -332,23 +407,29 @@ require_once("../config/notificaciones.php");
 
     </div>
 
+
+
     <!-- =====================================
          LISTADO DE CLIENTES
     ====================================== -->
 
     <div
         class="tabla-container"
-        data-tabla-buscable>
+        data-tabla-buscable
+    >
 
         <h2>
             CLIENTES REGISTRADOS
         </h2>
+
+
 
         <!-- =================================
              BUSCADOR
         ================================== -->
 
         <div class="herramientas-tabla">
+
 
             <div class="buscador-tabla">
 
@@ -358,21 +439,29 @@ require_once("../config/notificaciones.php");
 
                 </label>
 
+
                 <input
                     type="search"
                     id="buscarClientes"
                     data-buscador
+
                     placeholder="Cédula, nombre, correo, teléfono o estado"
-                    autocomplete="off">
+
+                    autocomplete="off"
+                >
 
             </div>
 
+
             <span
                 class="contador-resultados"
-                data-contador-resultados>
+                data-contador-resultados
+            >
             </span>
 
         </div>
+
+
 
         <!-- =================================
              TABLA CON SCROLL
@@ -388,11 +477,13 @@ require_once("../config/notificaciones.php");
 
                         <th
                             data-ordenable
-                            data-tipo="numero">
+                            data-tipo="numero"
+                        >
 
                             ID
 
                         </th>
+
 
                         <th data-ordenable>
 
@@ -400,11 +491,13 @@ require_once("../config/notificaciones.php");
 
                         </th>
 
+
                         <th data-ordenable>
 
                             Nombres
 
                         </th>
+
 
                         <th data-ordenable>
 
@@ -412,11 +505,13 @@ require_once("../config/notificaciones.php");
 
                         </th>
 
+
                         <th data-ordenable>
 
                             Teléfono
 
                         </th>
+
 
                         <th data-ordenable>
 
@@ -424,25 +519,30 @@ require_once("../config/notificaciones.php");
 
                         </th>
 
+
                         <th data-ordenable>
 
                             Dirección
 
                         </th>
 
+
                         <th
                             data-ordenable
-                            data-tipo="fecha">
+                            data-tipo="fecha"
+                        >
 
                             Registro
 
                         </th>
+
 
                         <th data-ordenable>
 
                             Estado
 
                         </th>
+
 
                         <th>
 
@@ -454,42 +554,58 @@ require_once("../config/notificaciones.php");
 
                 </thead>
 
+
                 <tbody>
+
 
                 <?php
 
                 while (
                     $fila =
-                    mysqli_fetch_assoc($resultado)
+                    mysqli_fetch_assoc(
+                        $resultado
+                    )
                 ) {
 
                     $idCliente =
-                        (int) $fila["id_cliente"];
+                        (int)
+                        $fila["id_cliente"];
+
 
                     $estado =
-                        $fila["estado"] ?? "Activo";
+                        $fila["estado"] ??
+                        "Activo";
 
                 ?>
 
+
                     <tr
                         class="<?php
-                            echo $estado === "Inactivo"
+
+                            echo
+                                $estado === "Inactivo"
                                 ? "fila-cliente-inactivo"
                                 : "";
-                        ?>">
+
+                        ?>"
+                    >
+
 
                         <!-- ID -->
 
                         <td
                             data-orden="<?php
                                 echo $idCliente;
-                            ?>">
+                            ?>"
+                        >
 
                             <?php
                             echo $idCliente;
                             ?>
 
                         </td>
+
+
 
                         <!-- CÉDULA -->
 
@@ -498,12 +614,16 @@ require_once("../config/notificaciones.php");
                             <?php
 
                             echo htmlspecialchars(
-                                $fila["cedula"]
+                                $fila["cedula"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             );
 
                             ?>
 
                         </td>
+
+
 
                         <!-- NOMBRES -->
 
@@ -512,12 +632,16 @@ require_once("../config/notificaciones.php");
                             <?php
 
                             echo htmlspecialchars(
-                                $fila["nombres"]
+                                $fila["nombres"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             );
 
                             ?>
 
                         </td>
+
+
 
                         <!-- APELLIDOS -->
 
@@ -526,12 +650,16 @@ require_once("../config/notificaciones.php");
                             <?php
 
                             echo htmlspecialchars(
-                                $fila["apellidos"]
+                                $fila["apellidos"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             );
 
                             ?>
 
                         </td>
+
+
 
                         <!-- TELÉFONO -->
 
@@ -540,12 +668,16 @@ require_once("../config/notificaciones.php");
                             <?php
 
                             echo htmlspecialchars(
-                                $fila["telefono"]
+                                $fila["telefono"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             );
 
                             ?>
 
                         </td>
+
+
 
                         <!-- CORREO -->
 
@@ -554,12 +686,16 @@ require_once("../config/notificaciones.php");
                             <?php
 
                             echo htmlspecialchars(
-                                $fila["correo"]
+                                $fila["correo"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             );
 
                             ?>
 
                         </td>
+
+
 
                         <!-- DIRECCIÓN -->
 
@@ -568,21 +704,30 @@ require_once("../config/notificaciones.php");
                             <?php
 
                             echo htmlspecialchars(
-                                $fila["direccion"]
+                                $fila["direccion"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             );
 
                             ?>
 
                         </td>
 
+
+
                         <!-- FECHA REGISTRO -->
 
                         <td
                             data-orden="<?php
+
                                 echo htmlspecialchars(
-                                    $fila["fecha_registro"]
+                                    $fila["fecha_registro"] ?? "",
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 );
-                            ?>">
+
+                            ?>"
+                        >
 
                             <?php
 
@@ -595,9 +740,7 @@ require_once("../config/notificaciones.php");
                                 echo date(
                                     "d/m/Y",
                                     strtotime(
-                                        $fila[
-                                            "fecha_registro"
-                                        ]
+                                        $fila["fecha_registro"]
                                     )
                                 );
 
@@ -610,14 +753,21 @@ require_once("../config/notificaciones.php");
 
                         </td>
 
+
+
                         <!-- ESTADO -->
 
                         <td
                             data-orden="<?php
+
                                 echo htmlspecialchars(
-                                    $estado
+                                    $estado,
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 );
-                            ?>">
+
+                            ?>"
+                        >
 
                             <?php
 
@@ -628,7 +778,8 @@ require_once("../config/notificaciones.php");
                             ?>
 
                                 <span
-                                    class="estado-activa">
+                                    class="estado-activa"
+                                >
 
                                     Activo
 
@@ -641,7 +792,8 @@ require_once("../config/notificaciones.php");
                             ?>
 
                                 <span
-                                    class="estado-vencida">
+                                    class="estado-vencida"
+                                >
 
                                     Inactivo
 
@@ -655,11 +807,14 @@ require_once("../config/notificaciones.php");
 
                         </td>
 
+
+
                         <!-- =================================
                              ACCIONES
                         ================================== -->
 
                         <td class="acciones-cliente">
+
 
                             <!-- EDITAR -->
 
@@ -667,11 +822,14 @@ require_once("../config/notificaciones.php");
                                 href="editar_cliente.php?id=<?php
                                     echo $idCliente;
                                 ?>"
-                                class="btn-editar">
+                                class="btn-editar"
+                            >
 
                                 Editar
 
                             </a>
+
+
 
                             <!-- =================================
                                  SOLO ADMINISTRADOR
@@ -685,28 +843,57 @@ require_once("../config/notificaciones.php");
                                 "Administrador"
                             ) {
 
+
+                                /* =============================
+                                   CLIENTE ACTIVO
+                                ============================= */
+
                                 if (
                                     $estado === "Activo"
                                 ) {
 
                             ?>
 
+
                                     <!-- DESACTIVAR -->
 
-                                    <a
-                                        href="eliminar_cliente.php?id=<?php
-                                            echo $idCliente;
-                                        ?>"
-                                        class="btn-eliminar"
-                                        onclick="
+                                    <form
+                                        action="eliminar_cliente.php"
+                                        method="POST"
+                                        style="display:inline;"
+
+                                        onsubmit="
                                             return confirm(
                                                 '¿Desea desactivar este cliente? Sus membresías y pagos se conservarán.'
                                             );
-                                        ">
+                                        "
+                                    >
 
-                                        Desactivar
+                                        <?php
+                                        echo csrf_field();
+                                        ?>
 
-                                    </a>
+
+                                        <input
+                                            type="hidden"
+                                            name="id_cliente"
+                                            value="<?php
+                                                echo $idCliente;
+                                            ?>"
+                                        >
+
+
+                                        <button
+                                            type="submit"
+                                            class="btn-eliminar"
+                                        >
+
+                                            Desactivar
+
+                                        </button>
+
+                                    </form>
+
 
                             <?php
 
@@ -714,22 +901,46 @@ require_once("../config/notificaciones.php");
 
                             ?>
 
+
                                     <!-- REACTIVAR -->
 
-                                    <a
-                                        href="reactivar_cliente.php?id=<?php
-                                            echo $idCliente;
-                                        ?>"
-                                        class="btn-renovar"
-                                        onclick="
+                                    <form
+                                        action="reactivar_cliente.php"
+                                        method="POST"
+                                        style="display:inline;"
+
+                                        onsubmit="
                                             return confirm(
                                                 '¿Desea reactivar este cliente?'
                                             );
-                                        ">
+                                        "
+                                    >
 
-                                        Reactivar
+                                        <?php
+                                        echo csrf_field();
+                                        ?>
 
-                                    </a>
+
+                                        <input
+                                            type="hidden"
+                                            name="id_cliente"
+                                            value="<?php
+                                                echo $idCliente;
+                                            ?>"
+                                        >
+
+
+                                        <button
+                                            type="submit"
+                                            class="btn-renovar"
+                                        >
+
+                                            Reactivar
+
+                                        </button>
+
+                                    </form>
+
 
                             <?php
 
@@ -741,13 +952,16 @@ require_once("../config/notificaciones.php");
 
                         </td>
 
+
                     </tr>
+
 
                 <?php
 
                 }
 
                 ?>
+
 
                     <!-- =================================
                          SIN RESULTADOS DEL BUSCADOR
@@ -756,7 +970,8 @@ require_once("../config/notificaciones.php");
                     <tr
                         data-sin-resultados
                         class="fila-busqueda-vacia"
-                        style="display:none;">
+                        style="display:none;"
+                    >
 
                         <td colspan="10">
 
@@ -765,6 +980,7 @@ require_once("../config/notificaciones.php");
                         </td>
 
                     </tr>
+
 
                 </tbody>
 
@@ -776,11 +992,14 @@ require_once("../config/notificaciones.php");
 
 </div>
 
+
+
 <!-- =========================================
      JAVASCRIPT DE BÚSQUEDA Y ORDENAMIENTO
 ========================================= -->
 
 <script src="../assets/js/tablas.js"></script>
+
 
 </body>
 

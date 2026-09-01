@@ -2,10 +2,12 @@
 
 require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
+require_once("../config/csrf.php");
 
-/* =================================
+
+/* =========================================
    SOLO ADMINISTRADOR
-================================= */
+========================================= */
 
 if (
     !isset($_SESSION["rol"]) ||
@@ -22,13 +24,47 @@ if (
     exit();
 }
 
-/* =================================
+
+/* =========================================
+   SOLO POST
+========================================= */
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+
+    header(
+        "Location: clientes.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "Solicitud no válida."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   VALIDAR CSRF
+========================================= */
+
+verificar_csrf();
+
+
+/* =========================================
    RECIBIR ID
-================================= */
+========================================= */
 
-$id_cliente = (int) ($_GET["id"] ?? 0);
+$id_cliente =
+    filter_input(
+        INPUT_POST,
+        "id_cliente",
+        FILTER_VALIDATE_INT
+    );
 
-if ($id_cliente <= 0) {
+
+if (
+    !$id_cliente ||
+    $id_cliente <= 0
+) {
 
     header(
         "Location: clientes.php?tipo=advertencia&mensaje=" .
@@ -40,19 +76,45 @@ if ($id_cliente <= 0) {
     exit();
 }
 
-/* =================================
-   COMPROBAR QUE EXISTA
-================================= */
 
-$sqlExiste = "SELECT id_cliente
-              FROM clientes
-              WHERE id_cliente = ?
-              LIMIT 1";
+/* =========================================
+   COMPROBAR QUE EL CLIENTE EXISTA
+========================================= */
 
-$stmtExiste = mysqli_prepare(
-    $conexion,
-    $sqlExiste
-);
+$sqlExiste = "
+    SELECT
+        id_cliente,
+        estado
+    FROM clientes
+    WHERE id_cliente = ?
+    LIMIT 1
+";
+
+
+$stmtExiste =
+    mysqli_prepare(
+        $conexion,
+        $sqlExiste
+    );
+
+
+if (!$stmtExiste) {
+
+    error_log(
+        "Error preparando consulta de cliente: " .
+        mysqli_error($conexion)
+    );
+
+    header(
+        "Location: clientes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo procesar la solicitud."
+        )
+    );
+
+    exit();
+}
+
 
 mysqli_stmt_bind_param(
     $stmtExiste,
@@ -60,14 +122,27 @@ mysqli_stmt_bind_param(
     $id_cliente
 );
 
-mysqli_stmt_execute($stmtExiste);
+
+mysqli_stmt_execute(
+    $stmtExiste
+);
+
 
 $resultadoExiste =
-    mysqli_stmt_get_result($stmtExiste);
+    mysqli_stmt_get_result(
+        $stmtExiste
+    );
+
 
 if (
-    mysqli_num_rows($resultadoExiste) === 0
+    mysqli_num_rows(
+        $resultadoExiste
+    ) === 0
 ) {
+
+    mysqli_stmt_close(
+        $stmtExiste
+    );
 
     header(
         "Location: clientes.php?tipo=advertencia&mensaje=" .
@@ -79,18 +154,73 @@ if (
     exit();
 }
 
-/* =================================
-   DESACTIVAR CLIENTE
-================================= */
 
-$sql = "UPDATE clientes
-        SET estado = 'Inactivo'
-        WHERE id_cliente = ?";
+$cliente =
+    mysqli_fetch_assoc(
+        $resultadoExiste
+    );
 
-$stmt = mysqli_prepare(
-    $conexion,
-    $sql
+
+mysqli_stmt_close(
+    $stmtExiste
 );
+
+
+/* =========================================
+   COMPROBAR SI YA ESTÁ INACTIVO
+========================================= */
+
+if (
+    $cliente["estado"] === "Inactivo"
+) {
+
+    header(
+        "Location: clientes.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "El cliente ya se encuentra inactivo."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   DESACTIVAR CLIENTE
+========================================= */
+
+$sql = "
+    UPDATE clientes
+    SET estado = 'Inactivo'
+    WHERE id_cliente = ?
+    AND estado = 'Activo'
+";
+
+
+$stmt =
+    mysqli_prepare(
+        $conexion,
+        $sql
+    );
+
+
+if (!$stmt) {
+
+    error_log(
+        "Error preparando desactivación de cliente: " .
+        mysqli_error($conexion)
+    );
+
+    header(
+        "Location: clientes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo desactivar el cliente."
+        )
+    );
+
+    exit();
+}
+
 
 mysqli_stmt_bind_param(
     $stmt,
@@ -98,7 +228,20 @@ mysqli_stmt_bind_param(
     $id_cliente
 );
 
-if (mysqli_stmt_execute($stmt)) {
+
+/* =========================================
+   EJECUTAR
+========================================= */
+
+if (
+    mysqli_stmt_execute(
+        $stmt
+    )
+) {
+
+    mysqli_stmt_close(
+        $stmt
+    );
 
     header(
         "Location: clientes.php?tipo=exito&mensaje=" .
@@ -109,6 +252,17 @@ if (mysqli_stmt_execute($stmt)) {
 
 } else {
 
+    error_log(
+        "Error desactivando cliente: " .
+        mysqli_stmt_error(
+            $stmt
+        )
+    );
+
+    mysqli_stmt_close(
+        $stmt
+    );
+
     header(
         "Location: clientes.php?tipo=error&mensaje=" .
         urlencode(
@@ -118,5 +272,3 @@ if (mysqli_stmt_execute($stmt)) {
 }
 
 exit();
-
-?>
