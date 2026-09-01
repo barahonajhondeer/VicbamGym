@@ -1,70 +1,244 @@
 <?php
 
-require_once("config/conexion.php");
 require_once("config/verificar_sesion.php");
+require_once("config/conexion.php");
 
-/* Actualizar membresías vencidas */
-$sqlActualizar = "UPDATE membresias
-                  SET estado = 'Vencida'
-                  WHERE fecha_fin < CURDATE()
-                  AND estado <> 'Vencida'";
 
-mysqli_query($conexion, $sqlActualizar);
+/* =========================================
+   TOTAL CLIENTES ACTIVOS
+========================================= */
 
-/* Total de clientes */
-$sqlClientes = "SELECT COUNT(*) AS total FROM clientes";
-$resultadoClientes = mysqli_query($conexion, $sqlClientes);
-$totalClientes = mysqli_fetch_assoc($resultadoClientes)['total'] ?? 0;
+$sqlClientes = "
+    SELECT COUNT(*) AS total
+    FROM clientes
+    WHERE estado = 'Activo'
+";
 
-/* Membresías activas */
-$sqlActivas = "SELECT COUNT(*) AS total
-               FROM membresias
-               WHERE estado = 'Activa'";
+$resultadoClientes = mysqli_query(
+    $conexion,
+    $sqlClientes
+);
 
-$resultadoActivas = mysqli_query($conexion, $sqlActivas);
-$totalActivas = mysqli_fetch_assoc($resultadoActivas)['total'] ?? 0;
+$filaClientes = mysqli_fetch_assoc(
+    $resultadoClientes
+);
 
-/* Membresías vencidas */
-$sqlVencidas = "SELECT COUNT(*) AS total
-                FROM membresias
-                WHERE estado = 'Vencida'";
+$totalClientes =
+    (int) $filaClientes["total"];
 
-$resultadoVencidas = mysqli_query($conexion, $sqlVencidas);
-$totalVencidas = mysqli_fetch_assoc($resultadoVencidas)['total'] ?? 0;
 
-/* Ingresos del mes actual */
-$sqlIngresosMes = "SELECT COALESCE(SUM(valor), 0) AS total
-                   FROM pagos
-                   WHERE YEAR(fecha_pago) = YEAR(CURDATE())
-                   AND MONTH(fecha_pago) = MONTH(CURDATE())";
+/* =========================================
+   MEMBRESÍAS ACTIVAS
+========================================= */
 
-$resultadoIngresosMes = mysqli_query($conexion, $sqlIngresosMes);
-$ingresosMes = mysqli_fetch_assoc($resultadoIngresosMes)['total'] ?? 0;
+$sqlActivas = "
+    SELECT COUNT(*) AS total
+    FROM membresias
+    WHERE fecha_fin >= CURDATE()
+";
 
-/* Pagos realizados hoy */
-$sqlPagosHoy = "SELECT COUNT(*) AS total
-                FROM pagos
-                WHERE fecha_pago = CURDATE()";
+$resultadoActivas = mysqli_query(
+    $conexion,
+    $sqlActivas
+);
 
-$resultadoPagosHoy = mysqli_query($conexion, $sqlPagosHoy);
-$pagosHoy = mysqli_fetch_assoc($resultadoPagosHoy)['total'] ?? 0;
+$filaActivas = mysqli_fetch_assoc(
+    $resultadoActivas
+);
 
-/* Membresías que vencen en los próximos 5 días */
-$sqlProximas = "SELECT
-                    c.nombres,
-                    c.apellidos,
-                    m.tipo,
-                    m.fecha_fin,
-                    DATEDIFF(m.fecha_fin, CURDATE()) AS dias_restantes
-                FROM membresias m
-                INNER JOIN clientes c
-                    ON m.id_cliente = c.id_cliente
-                WHERE m.estado = 'Activa'
-                AND m.fecha_fin BETWEEN CURDATE()
-                                    AND DATE_ADD(CURDATE(), INTERVAL 5 DAY)
-                ORDER BY m.fecha_fin ASC";
+$totalActivas =
+    (int) $filaActivas["total"];
 
-$resultadoProximas = mysqli_query($conexion, $sqlProximas);
+
+/* =========================================
+   MEMBRESÍAS VENCIDAS
+========================================= */
+
+$sqlVencidas = "
+    SELECT COUNT(*) AS total
+    FROM membresias
+    WHERE fecha_fin < CURDATE()
+";
+
+$resultadoVencidas = mysqli_query(
+    $conexion,
+    $sqlVencidas
+);
+
+$filaVencidas = mysqli_fetch_assoc(
+    $resultadoVencidas
+);
+
+$totalVencidas =
+    (int) $filaVencidas["total"];
+
+
+/* =========================================
+   INGRESOS DEL MES
+
+   IMPORTANTE:
+   SOLO PAGOS REGISTRADOS
+========================================= */
+
+$sqlIngresosMes = "
+    SELECT
+        COALESCE(SUM(valor), 0) AS total
+    FROM pagos
+
+    WHERE
+        MONTH(fecha_pago) =
+        MONTH(CURDATE())
+
+    AND
+        YEAR(fecha_pago) =
+        YEAR(CURDATE())
+
+    AND estado = 'Registrado'
+";
+
+$resultadoIngresosMes =
+    mysqli_query(
+        $conexion,
+        $sqlIngresosMes
+    );
+
+$filaIngresosMes =
+    mysqli_fetch_assoc(
+        $resultadoIngresosMes
+    );
+
+$ingresosMes =
+    (float) $filaIngresosMes["total"];
+
+
+/* =========================================
+   PAGOS REALIZADOS HOY
+========================================= */
+
+$sqlPagosHoy = "
+    SELECT COUNT(*) AS total
+    FROM pagos
+
+    WHERE fecha_pago = CURDATE()
+
+    AND estado = 'Registrado'
+";
+
+$resultadoPagosHoy =
+    mysqli_query(
+        $conexion,
+        $sqlPagosHoy
+    );
+
+$filaPagosHoy =
+    mysqli_fetch_assoc(
+        $resultadoPagosHoy
+    );
+
+$pagosHoy =
+    (int) $filaPagosHoy["total"];
+
+
+/* =========================================
+   INGRESOS POR MES
+   PARA CHART.JS
+========================================= */
+
+$sqlGrafico = "
+    SELECT
+
+        MONTH(fecha_pago) AS mes,
+
+        COALESCE(
+            SUM(valor),
+            0
+        ) AS total
+
+    FROM pagos
+
+    WHERE
+        YEAR(fecha_pago) =
+        YEAR(CURDATE())
+
+    AND estado = 'Registrado'
+
+    GROUP BY MONTH(fecha_pago)
+
+    ORDER BY MONTH(fecha_pago)
+";
+
+$resultadoGrafico =
+    mysqli_query(
+        $conexion,
+        $sqlGrafico
+    );
+
+
+/* =========================================
+   INICIALIZAR LOS 12 MESES
+========================================= */
+
+$ingresosPorMes = array_fill(
+    1,
+    12,
+    0
+);
+
+
+while (
+    $filaGrafico =
+    mysqli_fetch_assoc(
+        $resultadoGrafico
+    )
+) {
+
+    $mes =
+        (int) $filaGrafico["mes"];
+
+    $ingresosPorMes[$mes] =
+        (float) $filaGrafico["total"];
+}
+
+
+/* =========================================
+   MEMBRESÍAS PRÓXIMAS A VENCER
+========================================= */
+
+$sqlProximas = "
+    SELECT
+
+        m.id_membresia,
+        m.tipo,
+        m.fecha_fin,
+
+        c.nombres,
+        c.apellidos
+
+    FROM membresias m
+
+    INNER JOIN clientes c
+        ON c.id_cliente = m.id_cliente
+
+    WHERE
+        m.fecha_fin >= CURDATE()
+
+    AND
+        m.fecha_fin <=
+        DATE_ADD(
+            CURDATE(),
+            INTERVAL 5 DAY
+        )
+
+    AND c.estado = 'Activo'
+
+    ORDER BY m.fecha_fin ASC
+";
+
+$resultadoProximas =
+    mysqli_query(
+        $conexion,
+        $sqlProximas
+    );
 
 ?>
 

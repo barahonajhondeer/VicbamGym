@@ -38,7 +38,7 @@ $sql = "SELECT
         INNER JOIN membresias m
             ON p.id_membresia = m.id_membresia
 
-        WHERE
+        WHERE p.estado = 'Registrado'
             (
                 c.cedula LIKE ?
                 OR c.nombres LIKE ?

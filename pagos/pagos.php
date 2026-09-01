@@ -1,6 +1,88 @@
 <?php
-require_once("../config/conexion.php");
+
 require_once("../config/verificar_sesion.php");
+require_once("../config/conexion.php");
+
+
+/* =========================================
+   CONSULTAR CLIENTES ACTIVOS
+========================================= */
+
+$sqlClientes = "
+    SELECT
+        id_cliente,
+        cedula,
+        nombres,
+        apellidos
+    FROM clientes
+    WHERE estado = 'Activo'
+    ORDER BY nombres ASC, apellidos ASC
+";
+
+$resultadoClientes = mysqli_query(
+    $conexion,
+    $sqlClientes
+);
+
+if (!$resultadoClientes) {
+
+    die(
+        "Error al consultar clientes: " .
+        mysqli_error($conexion)
+    );
+}
+
+
+/* =========================================
+   CONSULTAR HISTORIAL DE PAGOS
+========================================= */
+
+$sqlPagos = "
+    SELECT
+        p.id_pago,
+        p.id_cliente,
+        p.id_membresia,
+        p.valor,
+        p.metodo_pago,
+        p.fecha_pago,
+        p.estado,
+        p.motivo_anulacion,
+
+        c.cedula,
+        c.nombres,
+        c.apellidos,
+
+        m.tipo
+
+        u.nombre AS usuario_anulacion
+
+    FROM pagos p
+
+    INNER JOIN clientes c
+        ON c.id_cliente = p.id_cliente
+
+    INNER JOIN membresias m
+        ON m.id_membresia = p.id_membresia
+
+    LEFT JOIN usuarios u
+        ON u.id_usuario = p.anulado_por
+
+    ORDER BY p.id_pago DESC
+";
+
+$resultadoPagos = mysqli_query(
+    $conexion,
+    $sqlPagos
+);
+
+if (!$resultadoPagos) {
+
+    die(
+        "Error al consultar pagos: " .
+        mysqli_error($conexion)
+    );
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -9,651 +91,1284 @@ require_once("../config/verificar_sesion.php");
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<title>Pagos</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<link rel="stylesheet" href="../assets/css/styles.css">
+    <title>
+        Pagos | VICBAMGYM
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="../assets/css/styles.css"
+    >
 
 </head>
 
 <body>
 
-<!-- MENÚ -->
+
+<!-- =========================================
+     MENÚ PRINCIPAL
+========================================= -->
 
 <nav class="navbar">
 
-<div class="logo-menu">
-<h2>VICBAMGYM</h2>
-</div>
-
-<ul class="menu">
-
-<li><a href="../dashboard.php">🏠 Dashboard</a></li>
-
-<li><a href="../clientes/clientes.php">👤 Clientes</a></li>
-
-<li><a href="../membresias/membresias.php">💳 Membresías</a></li>
-
-<li><a href="pagos.php">💰 Pagos</a></li>
-
-<li><a href="../reportes/reportes.php">📊 Reportes</a></li>
-
-<li><a href="../usuarios/usuarios.php">👨‍💼 Usuarios</a></li>
-
-<li><a href="../logout.php">🚪 Salir</a></li>
-
-</ul>
-
-</nav>
-
-<?php
-require_once("../config/notificaciones.php");
-?>
-
-<div class="contenedor-principal">
-
-<!-- FORMULARIO -->
-
-<div class="form-container">
-
-<h2>REGISTRO DE PAGOS</h2>
-
-<form action="guardar_pago.php" method="POST">
-
-<div class="form-group">
-
-<label>Cliente</label>
-
-<select name="id_cliente" id="id_cliente"> required>
-
-<option value="">Seleccione un cliente</option>
-
-<?php
-
-$sql="SELECT id_cliente,nombres,apellidos
-FROM clientes
-ORDER BY nombres";
-
-$resultado=mysqli_query($conexion,$sql);
-
-while($cliente=mysqli_fetch_assoc($resultado))
-{
-
-?>
-
-<option value="<?php echo $cliente['id_cliente']; ?>">
-
-<?php
-
-echo $cliente['nombres']." ".$cliente['apellidos'];
-
-?>
-
-</option>
-
-<?php
-
-
-}
-
-?>
-
-</select>
-
-</div>
-
-<div class="form-group">
-
-<label>Membresía</label>
-
-<input
-type="hidden"
-name="id_membresia"
-id="id_membresia">
-
-<div class="form-group">
-
-<label>Tipo de Membresía</label>
-
-<input
-type="text"
-id="tipo"
-readonly>
-
-</div>
-
-<div class="form-group">
-
-<label>Fecha Inicio</label>
-
-<input
-type="text"
-id="fecha_inicio"
-readonly>
-
-</div>
-
-<div class="form-group">
-
-<label>Fecha Fin</label>
-
-<input
-type="text"
-id="fecha_fin"
-readonly>
-
-</div>
-
-<div class="form-group">
-
-<label>Estado</label>
-
-<input
-type="text"
-id="estado"
-readonly>
-
-</div>
-
-<div class="form-group">
-
-    <label>Valor total de la membresía</label>
-
-    <input
-        type="number"
-        id="valor_total"
-        step="0.01"
-        readonly>
-
-</div>
-
-<div class="form-group">
-
-    <label>Total abonado</label>
-
-    <input
-        type="number"
-        id="total_abonado"
-        step="0.01"
-        readonly>
-
-</div>
-
-<div class="form-group">
-
-    <label>Saldo pendiente</label>
-
-    <input
-        type="number"
-        id="saldo_pendiente"
-        step="0.01"
-        readonly>
-
-</div>
-
-<div class="form-group">
-
-    <label>Fecha límite de pago</label>
-
-    <input
-        type="date"
-        id="fecha_limite_pago"
-        readonly>
-
-</div>
-
-<div class="form-group">
-
-    <label>Valor del nuevo abono</label>
-
-    <input
-        type="number"
-        name="valor"
-        id="valor"
-        step="0.01"
-        min="0.01"
-        placeholder="Ingrese el valor del abono"
-        required>
-
-</div>
-
-</div>
-
-<div class="form-group">
-
-<label>Método de Pago</label>
-
-<select name="metodo_pago" required>
-
-<option value="">Seleccione</option>
-
-<option>Efectivo</option>
-
-<option>Transferencia</option>
-
-</select>
-
-</div>
-
-<div class="form-group">
-
-<label>Fecha del Pago</label>
-
-<input
-type="date"
-name="fecha_pago"
-value="<?php echo date('Y-m-d');?>"
-required>
-
-</div>
-
-<button class="btn-guardar">
-
-Registrar Pago
-
-</button>
-
-</form>
-
-</div>
-
-<!-- TABLA -->
-
-<div class="tabla-container" data-tabla-buscable>
-
-<h2>PAGOS REGISTRADOS</h2>
-
-<div class="herramientas-tabla">
-
-    <div class="buscador-tabla">
-
-        <label for="buscarPagos">
-            Buscar pago
-        </label>
-
-        <input
-            type="search"
-            id="buscarPagos"
-            data-buscador
-            placeholder="Cliente, membresía, método, valor o fecha"
-            autocomplete="off">
+    <div class="logo-menu">
+
+        <h2>
+            VICBAMGYM
+        </h2>
 
     </div>
 
-    <span
-        class="contador-resultados"
-        data-contador-resultados>
-    </span>
 
-</div>
+    <ul class="menu">
 
-<div class="tabla-responsive">
+        <li>
 
-<table id="tablaPagos">
+            <a href="../dashboard.php">
+                🏠 Dashboard
+            </a>
 
-<thead>
+        </li>
 
-<tr>
 
-<th data-ordenable data-tipo="numero">ID</th>
+        <li>
 
-<th data-ordenable>Cliente</th>
+            <a href="../clientes/clientes.php">
+                👥 Clientes
+            </a>
 
-<th data-ordenable>Membresía</th>
+        </li>
 
-<th data-ordenable>Valor</th>
 
-<th data-ordenable>Método</th>
+        <li>
 
-<th data-ordenable>Fecha</th>
+            <a href="../membresias/membresias.php">
+                💳 Membresías
+            </a>
 
-<th data-ordenable>Acciones</th>
+        </li>
 
-</tr>
 
-</thead>
+        <li>
 
-<tbody>
+            <a
+                href="pagos.php"
+                class="menu-activo"
+            >
+                💰 Pagos
+            </a>
 
-<?php
+        </li>
 
-$sql="SELECT
 
-p.id_pago,
+        <li>
 
-c.nombres,
+            <a href="../reportes/reportes.php">
+                📊 Reportes
+            </a>
 
-c.apellidos,
+        </li>
 
-m.tipo,
 
-p.valor,
+        <?php
 
-p.metodo_pago,
+        if (
+            isset($_SESSION["rol"]) &&
+            $_SESSION["rol"] === "Administrador"
+        ) {
 
-p.fecha_pago
+        ?>
 
-FROM pagos p
+            <li>
 
-INNER JOIN clientes c
+                <a href="../usuarios/usuarios.php">
+                    👨‍💼 Usuarios
+                </a>
 
-ON p.id_cliente=c.id_cliente
+            </li>
 
-INNER JOIN membresias m
+        <?php
 
-ON p.id_membresia=m.id_membresia
+        }
 
-ORDER BY p.id_pago DESC";
+        ?>
 
-$resultado=mysqli_query($conexion,$sql);
 
-while($fila=mysqli_fetch_assoc($resultado))
-{
+        <li>
 
-?>
+            <a href="../logout.php">
+                🚪 Salir
+            </a>
 
-<tr>
+        </li>
 
-<td><?php echo $fila['id_pago']; ?></td>
+    </ul>
 
-<td><?php echo $fila['nombres']." ".$fila['apellidos']; ?></td>
+</nav>
 
-<td><?php echo $fila['tipo']; ?></td>
 
-<td data-orden="<?php echo $fila['valor']; ?>">
-    $ <?php 
-    echo number_format(
-        (float) $fila['valor'],
-        2
-    );
-     ?>
-</td>
-
-<td><?php echo $fila['metodo_pago']; ?></td>
-
-<td data-orden="<?php echo $fila['fecha_pago']; ?>">
-
-    <?php
-    echo date(
-        "d/m/Y",
-        strtotime($fila['fecha_pago'])
-    );
-    ?>
-
-</td>
-
-<td>
-
-<a
-class="btn-editar"
-href="editar_pago.php?id=<?php echo $fila['id_pago']; ?>">
-
-Editar
-
-</a>
-
-<a
-class="btn-eliminar"
-href="eliminar_pago.php?id=<?php echo $fila['id_pago']; ?>"
-onclick="return confirm('¿Desea eliminar este pago?')">
-
-Eliminar
-
-</a>
-
-</td>
-
-</tr>
+<!-- =========================================
+     NOTIFICACIONES
+========================================= -->
 
 <?php
 
+if (
+    file_exists(
+        "../config/notificaciones.php"
+    )
+) {
+
+    require_once(
+        "../config/notificaciones.php"
+    );
 }
 
 ?>
 
-<tr
-    data-sin-resultados
-    class="fila-busqueda-vacia"
-    style="display:none;">
 
-    <td colspan="7">
-        No se encontraron pagos.
-    </td>
+<!-- =========================================
+     CONTENIDO PRINCIPAL
+========================================= -->
 
-</tr>
+<div class="contenedor-principal">
 
-</tbody>
 
-</table>
+    <!-- =====================================
+         FORMULARIO REGISTRO DE PAGO
+    ====================================== -->
+
+    <div class="form-container">
+
+        <h2>
+            REGISTRAR PAGO
+        </h2>
+
+
+        <form
+            action="guardar_pago.php"
+            method="POST"
+            id="formPago"
+        >
+
+
+            <!-- CLIENTE -->
+
+            <div class="form-group">
+
+                <label for="id_cliente">
+                    Cliente
+                </label>
+
+
+                <select
+                    name="id_cliente"
+                    id="id_cliente"
+                    required
+                >
+
+                    <option value="">
+                        Seleccione un cliente
+                    </option>
+
+
+                    <?php
+
+                    while (
+                        $cliente =
+                        mysqli_fetch_assoc(
+                            $resultadoClientes
+                        )
+                    ) {
+
+                    ?>
+
+                        <option
+                            value="<?php
+                                echo (int)
+                                $cliente["id_cliente"];
+                            ?>"
+                        >
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $cliente["cedula"] .
+                                " - " .
+                                $cliente["nombres"] .
+                                " " .
+                                $cliente["apellidos"]
+                            );
+
+                            ?>
+
+                        </option>
+
+                    <?php
+
+                    }
+
+                    ?>
+
+                </select>
+
+            </div>
+
+
+            <!-- MEMBRESÍA -->
+
+            <div class="form-group">
+
+                <label for="id_membresia">
+                    Membresía
+                </label>
+
+
+                <select
+                    name="id_membresia"
+                    id="id_membresia"
+                    required
+                >
+
+                    <option value="">
+                        Seleccione primero un cliente
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- VALOR -->
+
+            <div class="form-group">
+
+                <label for="valor">
+                    Valor del pago
+                </label>
+
+
+                <input
+                    type="number"
+                    name="valor"
+                    id="valor"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                >
+
+            </div>
+
+
+            <!-- MÉTODO -->
+
+            <div class="form-group">
+
+                <label for="metodo_pago">
+                    Método de pago
+                </label>
+
+
+                <select
+                    name="metodo_pago"
+                    id="metodo_pago"
+                    required
+                >
+
+                    <option value="">
+                        Seleccione
+                    </option>
+
+                    <option value="Efectivo">
+                        Efectivo
+                    </option>
+
+                    <option value="Transferencia">
+                        Transferencia
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- FECHA -->
+
+            <div class="form-group">
+
+                <label for="fecha_pago">
+                    Fecha de pago
+                </label>
+
+
+                <input
+                    type="date"
+                    name="fecha_pago"
+                    id="fecha_pago"
+                    value="<?php
+                        echo date("Y-m-d");
+                    ?>"
+                    max="<?php
+                        echo date("Y-m-d");
+                    ?>"
+                    required
+                >
+
+            </div>
+
+
+            <!-- BOTÓN -->
+
+            <button
+                type="submit"
+                class="btn-guardar"
+            >
+
+                Registrar Pago
+
+            </button>
+
+        </form>
+
+    </div>
+
+
+
+    <!-- =====================================
+         HISTORIAL DE PAGOS
+    ====================================== -->
+
+    <div
+        class="tabla-container"
+        data-tabla-buscable
+    >
+
+        <h2>
+            HISTORIAL DE PAGOS
+        </h2>
+
+
+        <!-- BUSCADOR -->
+
+        <div class="herramientas-tabla">
+
+            <div class="buscador-tabla">
+
+                <label for="buscarPagos">
+
+                    Buscar pago
+
+                </label>
+
+
+                <input
+                    type="search"
+                    id="buscarPagos"
+                    data-buscador
+                    placeholder="Cliente, cédula, membresía, método o estado"
+                    autocomplete="off"
+                >
+
+            </div>
+
+
+            <span
+                class="contador-resultados"
+                data-contador-resultados
+            >
+            </span>
+
+        </div>
+
+
+        <!-- =================================
+             TABLA
+        ================================== -->
+
+        <div class="tabla-responsive">
+
+            <table id="tablaPagos">
+
+                <thead>
+
+                    <tr>
+
+                        <th
+                            data-ordenable
+                            data-tipo="numero"
+                        >
+                            ID
+                        </th>
+
+
+                        <th data-ordenable>
+                            Cliente
+                        </th>
+
+
+                        <th data-ordenable>
+                            Membresía
+                        </th>
+
+
+                        <th
+                            data-ordenable
+                            data-tipo="numero"
+                        >
+                            Valor
+                        </th>
+
+
+                        <th data-ordenable>
+                            Método
+                        </th>
+
+
+                        <th
+                            data-ordenable
+                            data-tipo="fecha"
+                        >
+                            Fecha
+                        </th>
+
+
+                        <th data-ordenable>
+                            Estado
+                        </th>
+
+
+                        <th>
+                            Acciones
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                <?php
+
+                while (
+                    $fila =
+                    mysqli_fetch_assoc(
+                        $resultadoPagos
+                    )
+                ) {
+
+                    $idPago =
+                        (int) $fila["id_pago"];
+
+                    $estadoPago =
+                        $fila["estado"] ??
+                        "Registrado";
+
+                ?>
+
+                    <tr
+                        class="<?php
+                            echo
+                            $estadoPago === "Anulado"
+                            ? "fila-pago-anulado"
+                            : "";
+                        ?>"
+                    >
+
+
+                        <!-- ID -->
+
+                        <td
+                            data-orden="<?php
+                                echo $idPago;
+                            ?>"
+                        >
+
+                            <?php
+                            echo $idPago;
+                            ?>
+
+                        </td>
+
+
+                        <!-- CLIENTE + CÉDULA -->
+
+                        <td class="cliente-pago">
+
+                            <strong>
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $fila["nombres"] .
+                                    " " .
+                                    $fila["apellidos"]
+                                );
+
+                                ?>
+
+                            </strong>
+
+
+                            <small>
+
+                                C.I.:
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $fila["cedula"]
+                                );
+
+                                ?>
+
+                            </small>
+
+                        </td>
+
+
+                        <!-- MEMBRESÍA -->
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $fila["tipo"]
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                        <!-- VALOR -->
+
+                        <td
+                            data-orden="<?php
+                                echo
+                                (float)
+                                $fila["valor"];
+                            ?>"
+                        >
+
+                            $
+
+                            <?php
+
+                            echo number_format(
+                                (float)
+                                $fila["valor"],
+                                2
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                        <!-- MÉTODO -->
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $fila["metodo_pago"]
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                        <!-- FECHA -->
+
+                        <td
+                            data-orden="<?php
+                                echo htmlspecialchars(
+                                    $fila["fecha_pago"]
+                                );
+                            ?>"
+                        >
+
+                            <?php
+
+                            echo date(
+                                "d/m/Y",
+                                strtotime(
+                                    $fila["fecha_pago"]
+                                )
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                        <!-- ESTADO -->
+
+                        <td
+                            data-orden="<?php
+                                echo htmlspecialchars(
+                                    $estadoPago
+                                );
+                            ?>"
+                        >
+
+                            <?php
+
+                            if (
+                                $estadoPago ===
+                                "Registrado"
+                            ) {
+
+                            ?>
+
+                                <span
+                                    class="estado-activa"
+                                >
+
+                                    Registrado
+
+                                </span>
+
+                            <?php
+
+                            } else {
+
+                            ?>
+
+                                <span
+                                    class="estado-vencida"
+                                >
+
+                                    Anulado
+
+                                </span>
+
+
+                                <?php
+
+                                if (
+                                    !empty(
+                                        $fila[
+                                            "motivo_anulacion"
+                                        ]
+                                    )
+                                ) {
+
+                                ?>
+
+                                    <div
+                                        class="motivo-pago"
+                                    >
+
+                                        <?php
+
+                                        echo htmlspecialchars(
+                                            $fila[
+                                                "motivo_anulacion"
+                                            ]
+                                        );
+
+                                        ?>
+
+                                    </div>
+                                    <div class="auditoria-pago">
+
+                                    <?php
+
+                                    if (
+                                        !empty(
+                                            $fila["usuario_anulacion"]
+                                        )
+                                    ) {
+
+                                        echo "Anulado por: " .
+                                            htmlspecialchars(
+                                                $fila["usuario_anulacion"]
+                                            );
+
+                                    }
+
+                                    ?>
+
+                                    <?php
+
+                                    if (
+                                        !empty(
+                                            $fila["fecha_anulacion"]
+                                        )
+                                    ) {
+
+                                        echo "<br>";
+
+                                        echo "Fecha: " .
+                                            date(
+                                                "d/m/Y H:i",
+                                                strtotime(
+                                                    $fila["fecha_anulacion"]
+                                                )
+                                            );
+
+                                    }
+
+                                    ?>
+
+                                </div>
+
+                                <?php
+
+                                }
+
+                                ?>
+
+                            <?php
+
+                            }
+
+                            ?>
+
+                        </td>
+
+
+                        <!-- ACCIONES -->
+
+                        <td class="acciones-pago">
+
+                            <?php
+
+                            if (
+                                isset(
+                                    $_SESSION["rol"]
+                                ) &&
+                                $_SESSION["rol"] ===
+                                "Administrador" &&
+                                $estadoPago ===
+                                "Registrado"
+                            ) {
+
+                            ?>
+
+                                <button
+                                    type="button"
+                                    class="btn-eliminar"
+                                    onclick="abrirAnulacion(
+                                        <?php
+                                            echo $idPago;
+                                        ?>
+                                    )"
+                                >
+
+                                    Anular
+
+                                </button>
+
+                            <?php
+
+                            } elseif (
+                                $estadoPago ===
+                                "Anulado"
+                            ) {
+
+                            ?>
+
+                                <span
+                                    class="texto-anulado"
+                                >
+
+                                    Sin acciones
+
+                                </span>
+
+                            <?php
+
+                            } else {
+
+                            ?>
+
+                                <span>
+                                    -
+                                </span>
+
+                            <?php
+
+                            }
+
+                            ?>
+
+                        </td>
+
+                    </tr>
+
+
+                <?php
+
+                }
+
+                ?>
+
+
+                    <!-- SIN RESULTADOS -->
+
+                    <tr
+                        data-sin-resultados
+                        class="fila-busqueda-vacia"
+                        style="display:none;"
+                    >
+
+                        <td colspan="8">
+
+                            No se encontraron pagos.
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
 
 </div>
 
-</div>
+
+
+<!-- =========================================
+     MODAL ANULAR PAGO
+========================================= -->
+
+<div
+    id="modalAnulacion"
+    class="modal-anulacion"
+>
+
+    <div class="modal-anulacion-contenido">
+
+        <h3>
+            Anular pago
+        </h3>
+
+
+        <p>
+            El pago permanecerá registrado,
+            pero dejará de contar como ingreso.
+        </p>
+
+
+        <form
+            action="anular_pago.php"
+            method="POST"
+        >
+
+            <input
+                type="hidden"
+                name="id_pago"
+                id="idPagoAnular"
+            >
+
+
+            <div class="form-group">
+
+                <label for="motivo_anulacion">
+
+                    Motivo de la anulación
+
+                </label>
+
+
+                <textarea
+                    name="motivo_anulacion"
+                    id="motivo_anulacion"
+                    maxlength="255"
+                    minlength="3"
+                    required
+                    placeholder="Ejemplo: pago registrado por error"
+                ></textarea>
+
+            </div>
+
+
+            <div class="acciones-modal">
+
+                <button
+                    type="submit"
+                    class="btn-eliminar"
+                >
+
+                    Confirmar anulación
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn-cancelar"
+                    onclick="cerrarAnulacion()"
+                >
+
+                    Cancelar
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
 
 </div>
 
-<script>
 
-document.addEventListener("DOMContentLoaded", function () {
 
-    const cliente =
-        document.getElementById("id_cliente");
-
-    const idMembresia =
-        document.getElementById("id_membresia");
-
-    const tipo =
-        document.getElementById("tipo");
-
-    const fechaInicio =
-        document.getElementById("fecha_inicio");
-
-    const fechaFin =
-        document.getElementById("fecha_fin");
-
-    const estado =
-        document.getElementById("estado");
-
-    const valorTotal =
-        document.getElementById("valor_total");
-
-    const totalAbonado =
-        document.getElementById("total_abonado");
-
-    const saldoPendiente =
-        document.getElementById("saldo_pendiente");
-
-    const fechaLimite =
-        document.getElementById("fecha_limite_pago");
-
-    const valorAbono =
-        document.getElementById("valor");
-
-    const botonGuardar =
-        document.querySelector(".btn-guardar");
-
-    function limpiarCampos() {
-
-        idMembresia.value = "";
-        tipo.value = "";
-        fechaInicio.value = "";
-        fechaFin.value = "";
-        estado.value = "";
-        valorTotal.value = "";
-        totalAbonado.value = "";
-        saldoPendiente.value = "";
-        fechaLimite.value = "";
-        valorAbono.value = "";
-        valorAbono.max = "";
-
-    }
-
-    cliente.addEventListener("change", function () {
-
-        const idCliente = this.value;
-
-        limpiarCampos();
-
-        if (idCliente === "") {
-            return;
-        }
-
-        fetch("obtener_membresia.php", {
-
-            method: "POST",
-
-            headers: {
-                "Content-Type":
-                    "application/x-www-form-urlencoded"
-            },
-
-            body:
-                "id_cliente=" +
-                encodeURIComponent(idCliente)
-
-        })
-
-        .then(function (response) {
-
-            if (!response.ok) {
-                throw new Error(
-                    "No se pudo consultar la membresía."
-                );
-            }
-
-            return response.json();
-
-        })
-
-        .then(function (data) {
-
-            if (!data) {
-
-                botonGuardar.disabled = true;
-
-                alert(
-                    "El cliente no posee una membresía activa."
-                );
-
-                return;
-            }
-
-            idMembresia.value =
-                data.id_membresia;
-
-            tipo.value =
-                data.tipo;
-
-            fechaInicio.value =
-                data.fecha_inicio;
-
-            fechaFin.value =
-                data.fecha_fin;
-
-            estado.value =
-                data.estado;
-
-            valorTotal.value =
-                parseFloat(data.valor || 0).toFixed(2);
-
-            totalAbonado.value =
-                parseFloat(
-                    data.total_abonado || 0
-                ).toFixed(2);
-
-            saldoPendiente.value =
-                parseFloat(
-                    data.saldo_pendiente || 0
-                ).toFixed(2);
-
-            fechaLimite.value =
-                data.fecha_limite_pago ||
-                data.fecha_fin;
-
-            valorAbono.max =
-                data.saldo_pendiente;
-
-            const saldo =
-                parseFloat(
-                    data.saldo_pendiente || 0
-                );
-
-            if (saldo <= 0) {
-
-                valorAbono.disabled = true;
-                botonGuardar.disabled = true;
-
-                botonGuardar.textContent =
-                    "Membresía pagada";
-
-            } else {
-
-                valorAbono.disabled = false;
-                botonGuardar.disabled = false;
-
-                botonGuardar.textContent =
-                    "Registrar abono";
-            }
-
-        })
-
-        .catch(function (error) {
-
-            limpiarCampos();
-
-            botonGuardar.disabled = true;
-
-            console.error(error);
-
-            alert(
-                "Ocurrió un error al obtener la membresía."
-            );
-
-        });
-
-    });
-
-    valorAbono.addEventListener(
-        "input",
-        function () {
-
-            const saldo =
-                parseFloat(
-                    saldoPendiente.value
-                ) || 0;
-
-            const abono =
-                parseFloat(this.value) || 0;
-
-            if (abono <= 0) {
-
-                this.setCustomValidity(
-                    "El abono debe ser mayor a cero."
-                );
-
-            } else if (abono > saldo) {
-
-                this.setCustomValidity(
-                    "El abono no puede superar el saldo pendiente de $" +
-                    saldo.toFixed(2)
-                );
-
-            } else {
-
-                this.setCustomValidity("");
-            }
-
-        }
-    );
-
-});
-
-</script>
+<!-- =========================================
+     JS GENERAL DE TABLAS
+========================================= -->
 
 <script src="../assets/js/tablas.js"></script>
 
-</body>
 
+
+<!-- =========================================
+     CARGAR MEMBRESÍAS DEL CLIENTE
+========================================= -->
+
+<script>
+
+const clienteSelect =
+    document.getElementById(
+        "id_cliente"
+    );
+
+const membresiaSelect =
+    document.getElementById(
+        "id_membresia"
+    );
+
+const valorInput =
+    document.getElementById(
+        "valor"
+    );
+
+
+clienteSelect.addEventListener(
+    "change",
+    function () {
+
+        const idCliente =
+            this.value;
+
+
+        valorInput.value = "";
+
+
+        if (!idCliente) {
+
+            membresiaSelect.innerHTML =
+                "<option value=''>" +
+                "Seleccione primero un cliente" +
+                "</option>";
+
+            return;
+        }
+
+
+        membresiaSelect.innerHTML =
+            "<option value=''>" +
+            "Cargando..." +
+            "</option>";
+
+
+        fetch(
+            "obtener_membresia.php?id_cliente=" +
+            encodeURIComponent(
+                idCliente
+            )
+        )
+
+        .then(
+            response => {
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "No se pudo consultar la membresía."
+                    );
+                }
+
+                return response.json();
+
+            }
+        )
+
+        .then(
+            data => {
+
+                membresiaSelect.innerHTML =
+                    "";
+
+
+                if (
+                    !Array.isArray(data) ||
+                    data.length === 0
+                ) {
+
+                    membresiaSelect.innerHTML =
+                        "<option value=''>" +
+                        "El cliente no tiene membresías disponibles" +
+                        "</option>";
+
+                    return;
+                }
+
+
+                const opcionInicial =
+                    document.createElement(
+                        "option"
+                    );
+
+                opcionInicial.value = "";
+
+                opcionInicial.textContent =
+                    "Seleccione una membresía";
+
+                membresiaSelect.appendChild(
+                    opcionInicial
+                );
+
+
+                data.forEach(
+                    membresia => {
+
+                        const opcion =
+                            document.createElement(
+                                "option"
+                            );
+
+
+                        opcion.value =
+                            membresia.id_membresia;
+
+
+                        opcion.dataset.saldo =
+                            membresia.saldo;
+
+
+                        let texto =
+                            membresia.tipo;
+
+
+                        if (
+                            membresia.fecha_fin
+                        ) {
+
+                            texto +=
+                                " | Vence: " +
+                                membresia.fecha_fin;
+                        }
+
+
+                        if (
+                            membresia.saldo !==
+                            undefined
+                        ) {
+
+                            texto +=
+                                " | Saldo: $" +
+                                parseFloat(
+                                    membresia.saldo
+                                ).toFixed(2);
+                        }
+
+
+                        opcion.textContent =
+                            texto;
+
+
+                        membresiaSelect.appendChild(
+                            opcion
+                        );
+
+                    }
+                );
+
+            }
+        )
+
+        .catch(
+            error => {
+
+                console.error(
+                    error
+                );
+
+
+                membresiaSelect.innerHTML =
+                    "<option value=''>" +
+                    "Error al cargar membresías" +
+                    "</option>";
+
+            }
+        );
+
+    }
+);
+
+
+/* =========================================
+   AL SELECCIONAR MEMBRESÍA,
+   COLOCAR SALDO MÁXIMO
+========================================= */
+
+membresiaSelect.addEventListener(
+    "change",
+    function () {
+
+        const opcion =
+            this.options[
+                this.selectedIndex
+            ];
+
+
+        if (
+            !opcion ||
+            !opcion.dataset.saldo
+        ) {
+
+            valorInput.value = "";
+            valorInput.removeAttribute(
+                "max"
+            );
+
+            return;
+        }
+
+
+        const saldo =
+            parseFloat(
+                opcion.dataset.saldo
+            );
+
+
+        if (
+            !isNaN(saldo)
+        ) {
+
+            valorInput.max =
+                saldo.toFixed(2);
+
+            valorInput.value =
+                saldo.toFixed(2);
+        }
+
+    }
+);
+
+</script>
+
+
+
+<!-- =========================================
+     MODAL DE ANULACIÓN
+========================================= -->
+
+<script>
+
+function abrirAnulacion(idPago) {
+
+    document.getElementById(
+        "idPagoAnular"
+    ).value =
+        idPago;
+
+
+    document.getElementById(
+        "motivo_anulacion"
+    ).value =
+        "";
+
+
+    document.getElementById(
+        "modalAnulacion"
+    ).style.display =
+        "flex";
+
+
+    setTimeout(
+        function () {
+
+            document.getElementById(
+                "motivo_anulacion"
+            ).focus();
+
+        },
+        100
+    );
+}
+
+
+function cerrarAnulacion() {
+
+    document.getElementById(
+        "modalAnulacion"
+    ).style.display =
+        "none";
+
+}
+
+
+/* CERRAR HACIENDO CLIC FUERA */
+
+document.getElementById(
+    "modalAnulacion"
+).addEventListener(
+    "click",
+    function(event) {
+
+        if (
+            event.target === this
+        ) {
+
+            cerrarAnulacion();
+
+        }
+
+    }
+);
+
+
+/* CERRAR CON ESC */
+
+document.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Escape"
+        ) {
+
+            cerrarAnulacion();
+
+        }
+
+    }
+);
+
+</script>
+
+
+</body>
 
 </html>

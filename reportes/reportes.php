@@ -33,13 +33,32 @@ $datosVencidas = mysqli_fetch_assoc($resultadoVencidas);
 $totalVencidas = $datosVencidas['total'] ?? 0;
 
 // Total de ingresos
-$sqlIngresos = "SELECT COALESCE(SUM(valor), 0) AS total
-                FROM pagos";
+$sqlTotalIngresos = "
+    SELECT
 
-$resultadoIngresos = mysqli_query($conexion, $sqlIngresos);
-$datosIngresos = mysqli_fetch_assoc($resultadoIngresos);
-$totalIngresos = $datosIngresos['total'] ?? 0;
+        COALESCE(
+            SUM(valor),
+            0
+        ) AS total
 
+    FROM pagos
+
+    WHERE estado = 'Registrado'
+";
+
+$resultadoTotalIngresos =
+    mysqli_query(
+        $conexion,
+        $sqlTotalIngresos
+    );
+
+$filaTotal =
+    mysqli_fetch_assoc(
+        $resultadoTotalIngresos
+    );
+
+$totalIngresos =
+    (float) $filaTotal["total"];
 ?>
 
 <!DOCTYPE html>

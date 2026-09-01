@@ -103,13 +103,16 @@ if (
     /* Guardar datos en sesión */
 
     $_SESSION["id_usuario"] =
-        (int) $datosUsuario["id_usuario"];
+    $fila["id_usuario"];
 
-    $_SESSION["usuario"] =
-        $datosUsuario["usuario"];
+        $_SESSION["nombre"] =
+            $fila["nombre"];
 
-    $_SESSION["rol"] =
-        $datosUsuario["rol"];
+        $_SESSION["usuario"] =
+            $fila["usuario"];
+
+        $_SESSION["rol"] =
+            $fila["rol"];
 
     mysqli_stmt_close($stmt);
 

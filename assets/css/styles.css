@@ -2244,4 +2244,270 @@ th[data-ordenable].orden-desc::after{
     justify-content:center;
     flex-wrap:wrap;
 }
+/* =========================================
+   MODAL ANULAR PAGO
+========================================= */
+
+.modal-anulacion {
+    display: none;
+    position: fixed;
+    z-index: 99999;
+
+    top: 0;
+    left: 0;
+
+    width: 100%;
+    height: 100%;
+
+    background: rgba(0, 0, 0, 0.85);
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+
+/* CUADRO DEL MODAL */
+
+.modal-anulacion-contenido {
+    position: relative;
+
+    width: 100%;
+    max-width: 450px;
+
+    background: #181818;
+
+    border: 2px solid #ff0000;
+    border-radius: 15px;
+
+    padding: 30px;
+
+    box-sizing: border-box;
+
+    box-shadow:
+        0 0 25px rgba(255, 0, 0, 0.35);
+
+    color: white;
+}
+
+
+/* TÍTULO */
+
+.modal-anulacion-contenido h3 {
+    margin: 0 0 10px 0;
+
+    text-align: center;
+
+    color: #ffffff;
+
+    font-size: 24px;
+}
+
+
+/* DESCRIPCIÓN */
+
+.modal-anulacion-contenido p {
+    color: #bbbbbb;
+
+    text-align: center;
+
+    margin-bottom: 25px;
+}
+
+
+/* LABEL */
+
+.modal-anulacion-contenido label {
+    display: block;
+
+    color: white;
+
+    font-weight: bold;
+
+    margin-bottom: 8px;
+}
+
+
+/* TEXTAREA */
+
+.modal-anulacion-contenido textarea {
+    display: block;
+
+    width: 100%;
+    min-height: 110px;
+
+    padding: 12px;
+
+    box-sizing: border-box;
+
+    resize: vertical;
+
+    background: #252525;
+
+    border: 1px solid #555;
+    border-radius: 8px;
+
+    color: white;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    outline: none;
+}
+
+
+.modal-anulacion-contenido textarea:focus {
+    border-color: #ff0000;
+}
+
+
+/* BOTONES */
+
+.acciones-modal {
+    display: flex;
+
+    justify-content: center;
+
+    gap: 12px;
+
+    margin-top: 20px;
+}
+
+
+.acciones-modal .btn-eliminar,
+.acciones-modal .btn-cancelar {
+
+    flex: 1;
+
+    min-height: 42px;
+
+    border: none;
+    border-radius: 7px;
+
+    cursor: pointer;
+
+    font-weight: bold;
+}
+
+
+/* CONFIRMAR */
+
+.acciones-modal .btn-eliminar {
+    background: #d71920;
+    color: white;
+}
+
+
+/* CANCELAR */
+
+.acciones-modal .btn-cancelar {
+    background: #444;
+    color: white;
+}
+
+
+.acciones-modal .btn-eliminar:hover {
+    background: #ff0000;
+}
+
+
+.acciones-modal .btn-cancelar:hover {
+    background: #666;
+}
+
+
+/* PAGO ANULADO */
+
+.fila-pago-anulado {
+    opacity: 0.65;
+}
+
+
+.texto-anulado {
+    color: #999;
+    font-size: 13px;
+}
+/* =========================================
+   TABLA DE PAGOS
+========================================= */
+
+#tablaPagos{
+    width:100%;
+    table-layout:auto;
+}
+
+#tablaPagos th,
+#tablaPagos td{
+    padding:10px 8px;
+    vertical-align:middle;
+}
+
+.cliente-pago{
+    min-width:150px;
+}
+
+.cliente-pago strong{
+    display:block;
+    color:#fff;
+}
+
+.cliente-pago small{
+    display:block;
+    margin-top:4px;
+    color:#aaa;
+    font-size:12px;
+}
+
+.motivo-pago{
+    margin-top:5px;
+    max-width:170px;
+
+    color:#aaa;
+    font-size:11px;
+    line-height:1.25;
+
+    white-space:normal;
+}
+
+#tablaPagos th:nth-child(1){
+    width:50px;
+}
+
+#tablaPagos th:nth-child(3){
+    width:95px;
+}
+
+#tablaPagos th:nth-child(4){
+    width:80px;
+}
+
+#tablaPagos th:nth-child(5){
+    width:110px;
+}
+
+#tablaPagos th:nth-child(6){
+    width:100px;
+}
+
+#tablaPagos th:nth-child(7){
+    width:120px;
+}
+
+#tablaPagos th:nth-child(8){
+    width:90px;
+}
+.auditoria-pago{
+    margin-top:6px;
+
+    padding-top:6px;
+
+    border-top:1px solid #444;
+
+    color:#888;
+
+    font-size:10px;
+    line-height:1.4;
+}
 

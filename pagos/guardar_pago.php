@@ -1,188 +1,319 @@
 <?php
 
+require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
 
-$id_cliente    = intval($_POST["id_cliente"]);
-$id_membresia  = intval($_POST["id_membresia"]);
-$valorAbono    = floatval($_POST["valor"]);
-$metodo_pago   = trim($_POST["metodo_pago"]);
-$fecha_pago    = $_POST["fecha_pago"];
 
-/* ==========================
-   VALIDACIONES
-========================== */
+/* =========================================
+   RECIBIR DATOS
+========================================= */
+
+$id_cliente =
+    (int) ($_POST["id_cliente"] ?? 0);
+
+$id_membresia =
+    (int) ($_POST["id_membresia"] ?? 0);
+
+$valor =
+    (float) ($_POST["valor"] ?? 0);
+
+$metodo_pago =
+    trim(
+        $_POST["metodo_pago"] ?? ""
+    );
+
+$fecha_pago =
+    trim(
+        $_POST["fecha_pago"] ?? ""
+    );
+
+
+/* =========================================
+   VALIDACIONES BÁSICAS
+========================================= */
 
 if (
     $id_cliente <= 0 ||
     $id_membresia <= 0 ||
-    $valorAbono <= 0 ||
-    empty($metodo_pago) ||
-    empty($fecha_pago)
+    $valor <= 0 ||
+    $metodo_pago === "" ||
+    $fecha_pago === ""
 ) {
 
     header(
         "Location: pagos.php?tipo=advertencia&mensaje=" .
-        urlencode("Complete todos los campos obligatorios.")
+        urlencode(
+            "Complete correctamente todos los campos."
+        )
     );
-    
+
     exit();
 }
 
-/* ==========================
-   OBTENER VALOR DE MEMBRESÍA
-========================== */
 
-$sql = "SELECT valor
-        FROM membresias
-        WHERE id_membresia=?";
+/* =========================================
+   VALIDAR MÉTODO
+========================================= */
 
-$stmt = mysqli_prepare($conexion,$sql);
+$metodosPermitidos = [
+    "Efectivo",
+    "Transferencia"
+];
+
+
+if (
+    !in_array(
+        $metodo_pago,
+        $metodosPermitidos,
+        true
+    )
+) {
+
+    header(
+        "Location: pagos.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "Método de pago no válido."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   BUSCAR MEMBRESÍA
+========================================= */
+
+$sqlMembresia = "
+    SELECT
+
+        id_membresia,
+        id_cliente,
+        valor
+
+    FROM membresias
+
+    WHERE id_membresia = ?
+
+    AND id_cliente = ?
+
+    LIMIT 1
+";
+
+
+$stmtMembresia =
+    mysqli_prepare(
+        $conexion,
+        $sqlMembresia
+    );
+
 
 mysqli_stmt_bind_param(
-$stmt,
-"i",
-$id_membresia
+    $stmtMembresia,
+    "ii",
+    $id_membresia,
+    $id_cliente
 );
 
-mysqli_stmt_execute($stmt);
 
-$resultado = mysqli_stmt_get_result($stmt);
+mysqli_stmt_execute(
+    $stmtMembresia
+);
 
-$membresia = mysqli_fetch_assoc($resultado);
 
-if(!$membresia){
+$resultadoMembresia =
+    mysqli_stmt_get_result(
+        $stmtMembresia
+    );
+
+
+$membresia =
+    mysqli_fetch_assoc(
+        $resultadoMembresia
+    );
+
+
+if (!$membresia) {
 
     header(
         "Location: pagos.php?tipo=error&mensaje=" .
-        urlencode("La membresía seleccionada no existe.")
+        urlencode(
+            "La membresía seleccionada no corresponde al cliente."
+        )
     );
-    
+
     exit();
 }
 
-$valorTotal = floatval($membresia["valor"]);
 
-/* ==========================
-   TOTAL ABONADO
-========================== */
+/* =========================================
+   CALCULAR TOTAL PAGADO
 
-$sql = "SELECT
-            IFNULL(SUM(valor),0) total
-        FROM pagos
-        WHERE id_membresia=?";
+   NO CONTAR ANULADOS
+========================================= */
 
-$stmt = mysqli_prepare($conexion,$sql);
+$sqlPagado = "
+    SELECT
+
+        COALESCE(
+            SUM(valor),
+            0
+        ) AS pagado
+
+    FROM pagos
+
+    WHERE id_membresia = ?
+
+    AND estado = 'Registrado'
+";
+
+
+$stmtPagado =
+    mysqli_prepare(
+        $conexion,
+        $sqlPagado
+    );
+
 
 mysqli_stmt_bind_param(
-$stmt,
-"i",
-$id_membresia
+    $stmtPagado,
+    "i",
+    $id_membresia
 );
 
-mysqli_stmt_execute($stmt);
 
-$resultado = mysqli_stmt_get_result($stmt);
+mysqli_stmt_execute(
+    $stmtPagado
+);
 
-$total = mysqli_fetch_assoc($resultado);
 
-$totalAbonado = floatval($total["total"]);
+$resultadoPagado =
+    mysqli_stmt_get_result(
+        $stmtPagado
+    );
 
-$saldo = $valorTotal - $totalAbonado;
 
-/* ==========================
-   VALIDAR ABONO
-========================== */
+$filaPagado =
+    mysqli_fetch_assoc(
+        $resultadoPagado
+    );
 
-if($valorAbono > $saldo){
+
+$totalPagado =
+    (float)
+    $filaPagado["pagado"];
+
+
+$valorMembresia =
+    (float)
+    $membresia["valor"];
+
+
+$saldo =
+    $valorMembresia -
+    $totalPagado;
+
+
+/* =========================================
+   VALIDAR SALDO
+========================================= */
+
+if ($saldo <= 0) {
 
     header(
-        "Location: pagos.php?tipo=info&mensaje=" .
-        urlencode("Esta membresía ya se encuentra pagada completamente.")
+        "Location: pagos.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "Esta membresía ya se encuentra pagada completamente."
+        )
     );
-    
-    exit();
 
+    exit();
 }
 
-/* ==========================
-   INSERTAR PAGO
-========================== */
 
-$sql = "INSERT INTO pagos
-(
-id_cliente,
-id_membresia,
-valor,
-metodo_pago,
-fecha_pago
-)
+if ($valor > $saldo) {
 
-VALUES
-(
-?,
-?,
-?,
-?,
-?
-)";
+    header(
+        "Location: pagos.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "El pago supera el saldo pendiente de $" .
+            number_format(
+                $saldo,
+                2
+            )
+        )
+    );
 
-$stmt = mysqli_prepare($conexion,$sql);
+    exit();
+}
+
+
+/* =========================================
+   REGISTRAR PAGO
+========================================= */
+
+$sqlInsertar = "
+    INSERT INTO pagos
+    (
+        id_cliente,
+        id_membresia,
+        valor,
+        metodo_pago,
+        fecha_pago,
+        estado
+    )
+
+    VALUES
+    (
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        'Registrado'
+    )
+";
+
+
+$stmtInsertar =
+    mysqli_prepare(
+        $conexion,
+        $sqlInsertar
+    );
+
 
 mysqli_stmt_bind_param(
-
-$stmt,
-
-"iidss",
-
-$id_cliente,
-
-$id_membresia,
-
-$valorAbono,
-
-$metodo_pago,
-
-$fecha_pago
-
+    $stmtInsertar,
+    "iidss",
+    $id_cliente,
+    $id_membresia,
+    $valor,
+    $metodo_pago,
+    $fecha_pago
 );
 
-if (mysqli_stmt_execute($stmt)) {
 
-    $nuevoSaldo = $saldo - $valorAbono;
+if (
+    mysqli_stmt_execute(
+        $stmtInsertar
+    )
+) {
 
-    if ($nuevoSaldo <= 0) {
-
-        header(
-            "Location: pagos.php?tipo=exito&mensaje=" .
-            urlencode(
-                "Pago completado. La membresía quedó totalmente pagada."
-            )
-        );
-
-        exit();
-
-    } else {
-
-        header(
-            "Location: pagos.php?tipo=exito&mensaje=" .
-            urlencode(
-                "Abono registrado correctamente. Saldo pendiente: $" .
-                number_format($nuevoSaldo, 2) .
-                "."
-            )
-        );
-
-        exit();
-    }
+    header(
+        "Location: pagos.php?tipo=exito&mensaje=" .
+        urlencode(
+            "Pago registrado correctamente."
+        )
+    );
 
 } else {
 
     header(
         "Location: pagos.php?tipo=error&mensaje=" .
-        urlencode("No se pudo registrar el abono.")
+        urlencode(
+            "No se pudo registrar el pago."
+        )
     );
-
-    exit();
 }
 
-?>
+exit();
