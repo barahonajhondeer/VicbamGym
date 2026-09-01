@@ -2,6 +2,7 @@
 
 require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
+require_once("../config/csrf.php");
 
 /* =========================================
    CONSULTAR CLIENTES
@@ -195,6 +196,7 @@ require_once("../config/notificaciones.php");
         <form
             action="guardar_cliente.php"
             method="POST">
+            <?php echo csrf_field(); ?>
 
             <!-- CÉDULA -->
 

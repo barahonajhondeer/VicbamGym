@@ -1,5 +1,7 @@
 <?php
+require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
+require_once("../config/csrf.php");
 
 $id = $_GET['id'];
 
@@ -42,6 +44,7 @@ $fila = mysqli_fetch_assoc($resultado);
 <h2>EDITAR CLIENTE</h2>
 
 <form action="actualizar_cliente.php" method="POST">
+<?php echo csrf_field(); ?>
 
 <input
 type="hidden"

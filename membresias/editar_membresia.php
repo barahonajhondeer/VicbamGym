@@ -1,6 +1,7 @@
 <?php
 
 require_once("../config/conexion.php");
+require_once("../config/csrf.php");
 
 $id = $_GET['id'];
 
@@ -34,6 +35,7 @@ $fila = mysqli_fetch_assoc($resultado);
 <h2>EDITAR MEMBRESÍA</h2>
 
 <form action="actualizar_membresia.php" method="POST">
+<?php echo csrf_field(); ?>
 
 <input
 type="hidden"

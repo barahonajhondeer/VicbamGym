@@ -2,6 +2,7 @@
 
 require_once("../config/conexion.php");
 require_once("../config/verificar_sesion.php");
+require_once("../config/csrf.php");
 
 /* =================================
    ACTUALIZAR ESTADOS AUTOMÁTICAMENTE
@@ -133,6 +134,7 @@ require_once("../config/notificaciones.php");
         <form
             action="guardar_membresia.php"
             method="POST">
+            <?php echo csrf_field(); ?>
 
             <!-- CLIENTE -->
 

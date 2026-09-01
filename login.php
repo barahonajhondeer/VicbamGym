@@ -170,6 +170,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $_SESSION["rol"] =
                     $fila["rol"];
 
+                $_SESSION["ultima_actividad"] = time();
+                $_SESSION["ultima_regeneracion"] = time();
+
 
                 /* =========================
                    REDIRECCIÓN CORRECTA

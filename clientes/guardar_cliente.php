@@ -1,6 +1,10 @@
 <?php
 
+require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
+require_once("../config/csrf.php");
+
+verificar_csrf();
 
 $cedula = trim($_POST['cedula'] ?? '');
 $nombres = trim($_POST['nombres'] ?? '');
