@@ -151,12 +151,13 @@ require_once("../config/notificaciones.php");
                     <?php
 
                     $sqlClientes = "SELECT
-                                        id_cliente,
-                                        nombres,
-                                        apellidos
-                                    FROM clientes
-                                    ORDER BY nombres ASC,
-                                             apellidos ASC";
+                        id_cliente,
+                        nombres,
+                        apellidos
+                        FROM clientes
+                        WHERE estado = 'Activo'
+                        ORDER BY nombres ASC,
+                            apellidos ASC";
 
                     $resultadoClientes = mysqli_query(
                         $conexion,

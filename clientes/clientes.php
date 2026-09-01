@@ -1,6 +1,38 @@
 <?php
-require_once("../config/conexion.php");
+
 require_once("../config/verificar_sesion.php");
+require_once("../config/conexion.php");
+
+/* =========================================
+   CONSULTAR CLIENTES
+========================================= */
+
+$sql = "SELECT
+            id_cliente,
+            cedula,
+            nombres,
+            apellidos,
+            telefono,
+            correo,
+            direccion,
+            fecha_registro,
+            estado
+        FROM clientes
+        ORDER BY id_cliente DESC";
+
+$resultado = mysqli_query(
+    $conexion,
+    $sql
+);
+
+if (!$resultado) {
+
+    die(
+        "Error al consultar los clientes: " .
+        mysqli_error($conexion)
+    );
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -9,245 +41,742 @@ require_once("../config/verificar_sesion.php");
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<title>Clientes</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="../assets/css/styles.css">
+    <title>
+        Clientes | VICBAMGYM
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="../assets/css/styles.css">
 
 </head>
 
 <body>
+
+<!-- =========================================
+     MENÚ
+========================================= -->
+
 <nav class="navbar">
 
-<div class="logo-menu">
-    <h2>VICBAMGYM</h2>
-</div>
+    <div class="logo-menu">
 
-<ul class="menu">
-
-    <li><a href="../dashboard.php">🏠 Dashboard</a></li>
-
-    <li><a href="../clientes/clientes.php">👤 Clientes</a></li>
-
-    <li><a href="../membresias/membresias.php">💳 Membresías</a></li>
-
-    <li><a href="../pagos/pagos.php">💰 Pagos</a></li>
-
-    <li><a href="../reportes/reportes.php">📊 Reportes</a></li>
-
-    <li><a href="../usuarios/usuarios.php">👨‍💼 Usuarios</a></li>
-
-    <li><a href="../logout.php">🚪 Salir</a></li>
-
-</ul>
-
-</nav>
-
-<?php
-require_once("../config/notificaciones.php");
-?>
-
-<div class="contenedor-principal">
-
-<div class="form-container">
-
-<h2>REGISTRO DE CLIENTES</h2>
-
-<form action="guardar_cliente.php" method="POST">
-
-<div class="form-group">
-    <label>Cédula</label>
-    <input
-        type="text"
-        name="cedula"
-        id="cedula"
-        maxlength="10"
-        pattern="[0-9]{10}"
-        title="La cédula debe contener exactamente 10 dígitos Númericos."
-        required>
-</div>
-
-<div class="form-group">
-
-<label>Nombres</label>
-
-<input 
-        type="text" 
-        name="nombres"
-        required>
-
-</div>
-
-<div class="form-group">
-
-<label>Apellidos</label>
-
-<input type="text" name="apellidos" required>
-
-</div>
-
-<div class="form-group">
-
-<label>Teléfono</label>
-
-<input type="text" name="telefono" required>
-
-</div>
-
-<div class="form-group">
-    <label>Correo</label>
-    <input
-        type="email"
-        name="correo"
-        id="correo"
-        title="El Correo debe ser como el ejemplo: usuario@email.com."
-        required>
-</div>
-
-<div class="form-group">
-
-<label>Dirección</label>
-
-<input type="text" name="direccion" required>
-
-</div>
-
-<button class="btn-guardar">
-
-Guardar Cliente
-
-</button>
-
-</form>
-
-</div>
-
-<div class="tabla-container" data-tabla-buscable>
-
-    <h2>CLIENTES REGISTRADOS</h2>
-
-    <div class="herramientas-tabla">
-
-    <div class="buscador-tabla">
-
-        <label for="buscarClientes">
-            Buscar cliente
-        </label>
-
-        <input
-            type="search"
-            id="buscarClientes"
-            data-buscador
-            placeholder="Cédula, nombre, correo o teléfono"
-            autocomplete="off">
+        <h2>
+            VICBAMGYM
+        </h2>
 
     </div>
 
-    <span
-        class="contador-resultados"
-        data-contador-resultados>
-    </span>
+    <ul class="menu">
 
-</div>
+        <li>
 
-<div class="tabla-responsive">
+            <a href="../dashboard.php">
 
-<table id="tablaClientes">
+                🏠 Dashboard
 
-    <thead>
+            </a>
 
-    <tr>
-        <th data-ordenable data-tipo="numero"> ID</th>
-        <th data-ordenable>Cédula</th>
-        <th data-ordenable>Nombres</th>
-        <th data-ordenable>Apellidos</th>
-        <th data-ordenable>Teléfono</th>
-        <th data-ordenable>Correo</th>
-        <th data-ordenable>Dirección</th>
-        <th data-ordenable>Acciones</th>
-    </tr>
-    </thead>
+        </li>
+
+        <li>
+
+            <a
+                href="clientes.php"
+                class="menu-activo">
+
+                👥 Clientes
+
+            </a>
+
+        </li>
+
+        <li>
+
+            <a href="../membresias/membresias.php">
+
+                💳 Membresías
+
+            </a>
+
+        </li>
+
+        <li>
+
+            <a href="../pagos/pagos.php">
+
+                💰 Pagos
+
+            </a>
+
+        </li>
+
+        <li>
+
+            <a href="../reportes/reportes.php">
+
+                📊 Reportes
+
+            </a>
+
+        </li>
+
+        <?php
+
+        if (
+            isset($_SESSION["rol"]) &&
+            $_SESSION["rol"] === "Administrador"
+        ) {
+
+        ?>
+
+            <li>
+
+                <a href="../usuarios/usuarios.php">
+
+                    👨‍💼 Usuarios
+
+                </a>
+
+            </li>
+
+        <?php
+
+        }
+
+        ?>
+
+        <li>
+
+            <a href="../logout.php">
+
+                🚪 Salir
+
+            </a>
+
+        </li>
+
+    </ul>
+
+</nav>
+
+<!-- =========================================
+     NOTIFICACIONES TOAST
+========================================= -->
 
 <?php
- 
 
-$sql = "SELECT * FROM clientes";
+require_once("../config/notificaciones.php");
 
-$resultado = mysqli_query($conexion,$sql);
-
-
-
-while($fila = mysqli_fetch_assoc($resultado))
-{
 ?>
 
-<tr
-    data-sin-resultados
-    class="fila-busqueda-vacia"
-    style="display:none;">
+<!-- =========================================
+     CONTENIDO PRINCIPAL
+========================================= -->
 
-    <td colspan="8">
-        No se encontraron clientes.
-    </td>
+<div class="contenedor-principal">
 
-</tr>
+    <!-- =====================================
+         FORMULARIO REGISTRO
+    ====================================== -->
 
-<tr>
+    <div class="form-container">
 
-    <td><?php echo $fila['id_cliente']; ?></td>
+        <h2>
+            REGISTRO DE CLIENTES
+        </h2>
 
-    <td><?php echo $fila['cedula']; ?></td>
+        <form
+            action="guardar_cliente.php"
+            method="POST">
 
-    <td><?php echo $fila['nombres']; ?></td>
+            <!-- CÉDULA -->
 
-    <td><?php echo $fila['apellidos']; ?></td>
+            <div class="form-group">
 
-    <td><?php echo $fila['telefono']; ?></td>
+                <label for="cedula">
 
-    <td><?php echo $fila['correo']; ?></td>
+                    Cédula
 
-    <td><?php echo $fila['direccion']; ?></td>
+                </label>
 
-    <td class="acciones-cliente">
+                <input
+                    type="text"
+                    name="cedula"
+                    id="cedula"
+                    maxlength="10"
+                    minlength="10"
+                    pattern="[0-9]{10}"
+                    placeholder="10 dígitos"
+                    required>
 
-<a href="historial_cliente.php?id=<?php echo $fila['id_cliente']; ?>"
-   class="btn-historial">
-    Historial
-</a>
+            </div>
 
-<a href="editar_cliente.php?id=<?php echo $fila['id_cliente']; ?>"
-   class="btn-editar">
-    Editar
-</a>
+            <!-- NOMBRES -->
 
-<a href="asignar_acceso.php?id_cliente=<?php echo $fila['id_cliente']; ?>"
-   class="btn-acceso">
-    Acceso
-</a>
+            <div class="form-group">
 
-<a href="eliminar_cliente.php?id=<?php echo $fila['id_cliente']; ?>"
-   class="btn-eliminar"
-   onclick="return confirm('¿Está seguro de eliminar este cliente?');">
-    Eliminar
-</a>
+                <label for="nombres">
 
-</td>
+                    Nombres
 
-</tr>
+                </label>
 
+                <input
+                    type="text"
+                    name="nombres"
+                    id="nombres"
+                    maxlength="100"
+                    required>
 
-<?php
-}
-?>
+            </div>
 
-</table>
+            <!-- APELLIDOS -->
+
+            <div class="form-group">
+
+                <label for="apellidos">
+
+                    Apellidos
+
+                </label>
+
+                <input
+                    type="text"
+                    name="apellidos"
+                    id="apellidos"
+                    maxlength="100"
+                    required>
+
+            </div>
+
+            <!-- TELÉFONO -->
+
+            <div class="form-group">
+
+                <label for="telefono">
+
+                    Teléfono
+
+                </label>
+
+                <input
+                    type="text"
+                    name="telefono"
+                    id="telefono"
+                    maxlength="10"
+                    pattern="[0-9]{10}"
+                    placeholder="10 dígitos"
+                    required>
+
+            </div>
+
+            <!-- CORREO -->
+
+            <div class="form-group">
+
+                <label for="correo">
+
+                    Correo
+
+                </label>
+
+                <input
+                    type="email"
+                    name="correo"
+                    id="correo"
+                    maxlength="120"
+                    placeholder="ejemplo@correo.com"
+                    required>
+
+            </div>
+
+            <!-- DIRECCIÓN -->
+
+            <div class="form-group">
+
+                <label for="direccion">
+
+                    Dirección
+
+                </label>
+
+                <input
+                    type="text"
+                    name="direccion"
+                    id="direccion"
+                    maxlength="150"
+                    required>
+
+            </div>
+
+            <!-- GUARDAR -->
+
+            <button
+                type="submit"
+                class="btn-guardar">
+
+                Guardar Cliente
+
+            </button>
+
+        </form>
+
+    </div>
+
+    <!-- =====================================
+         LISTADO DE CLIENTES
+    ====================================== -->
+
+    <div
+        class="tabla-container"
+        data-tabla-buscable>
+
+        <h2>
+            CLIENTES REGISTRADOS
+        </h2>
+
+        <!-- =================================
+             BUSCADOR
+        ================================== -->
+
+        <div class="herramientas-tabla">
+
+            <div class="buscador-tabla">
+
+                <label for="buscarClientes">
+
+                    Buscar cliente
+
+                </label>
+
+                <input
+                    type="search"
+                    id="buscarClientes"
+                    data-buscador
+                    placeholder="Cédula, nombre, correo, teléfono o estado"
+                    autocomplete="off">
+
+            </div>
+
+            <span
+                class="contador-resultados"
+                data-contador-resultados>
+            </span>
+
+        </div>
+
+        <!-- =================================
+             TABLA CON SCROLL
+        ================================== -->
+
+        <div class="tabla-responsive">
+
+            <table id="tablaClientes">
+
+                <thead>
+
+                    <tr>
+
+                        <th
+                            data-ordenable
+                            data-tipo="numero">
+
+                            ID
+
+                        </th>
+
+                        <th data-ordenable>
+
+                            Cédula
+
+                        </th>
+
+                        <th data-ordenable>
+
+                            Nombres
+
+                        </th>
+
+                        <th data-ordenable>
+
+                            Apellidos
+
+                        </th>
+
+                        <th data-ordenable>
+
+                            Teléfono
+
+                        </th>
+
+                        <th data-ordenable>
+
+                            Correo
+
+                        </th>
+
+                        <th data-ordenable>
+
+                            Dirección
+
+                        </th>
+
+                        <th
+                            data-ordenable
+                            data-tipo="fecha">
+
+                            Registro
+
+                        </th>
+
+                        <th data-ordenable>
+
+                            Estado
+
+                        </th>
+
+                        <th>
+
+                            Acciones
+
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                <?php
+
+                while (
+                    $fila =
+                    mysqli_fetch_assoc($resultado)
+                ) {
+
+                    $idCliente =
+                        (int) $fila["id_cliente"];
+
+                    $estado =
+                        $fila["estado"] ?? "Activo";
+
+                ?>
+
+                    <tr
+                        class="<?php
+                            echo $estado === "Inactivo"
+                                ? "fila-cliente-inactivo"
+                                : "";
+                        ?>">
+
+                        <!-- ID -->
+
+                        <td
+                            data-orden="<?php
+                                echo $idCliente;
+                            ?>">
+
+                            <?php
+                            echo $idCliente;
+                            ?>
+
+                        </td>
+
+                        <!-- CÉDULA -->
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $fila["cedula"]
+                            );
+
+                            ?>
+
+                        </td>
+
+                        <!-- NOMBRES -->
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $fila["nombres"]
+                            );
+
+                            ?>
+
+                        </td>
+
+                        <!-- APELLIDOS -->
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $fila["apellidos"]
+                            );
+
+                            ?>
+
+                        </td>
+
+                        <!-- TELÉFONO -->
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $fila["telefono"]
+                            );
+
+                            ?>
+
+                        </td>
+
+                        <!-- CORREO -->
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $fila["correo"]
+                            );
+
+                            ?>
+
+                        </td>
+
+                        <!-- DIRECCIÓN -->
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $fila["direccion"]
+                            );
+
+                            ?>
+
+                        </td>
+
+                        <!-- FECHA REGISTRO -->
+
+                        <td
+                            data-orden="<?php
+                                echo htmlspecialchars(
+                                    $fila["fecha_registro"]
+                                );
+                            ?>">
+
+                            <?php
+
+                            if (
+                                !empty(
+                                    $fila["fecha_registro"]
+                                )
+                            ) {
+
+                                echo date(
+                                    "d/m/Y",
+                                    strtotime(
+                                        $fila[
+                                            "fecha_registro"
+                                        ]
+                                    )
+                                );
+
+                            } else {
+
+                                echo "-";
+                            }
+
+                            ?>
+
+                        </td>
+
+                        <!-- ESTADO -->
+
+                        <td
+                            data-orden="<?php
+                                echo htmlspecialchars(
+                                    $estado
+                                );
+                            ?>">
+
+                            <?php
+
+                            if (
+                                $estado === "Activo"
+                            ) {
+
+                            ?>
+
+                                <span
+                                    class="estado-activa">
+
+                                    Activo
+
+                                </span>
+
+                            <?php
+
+                            } else {
+
+                            ?>
+
+                                <span
+                                    class="estado-vencida">
+
+                                    Inactivo
+
+                                </span>
+
+                            <?php
+
+                            }
+
+                            ?>
+
+                        </td>
+
+                        <!-- =================================
+                             ACCIONES
+                        ================================== -->
+
+                        <td class="acciones-cliente">
+
+                            <!-- EDITAR -->
+
+                            <a
+                                href="editar_cliente.php?id=<?php
+                                    echo $idCliente;
+                                ?>"
+                                class="btn-editar">
+
+                                Editar
+
+                            </a>
+
+                            <!-- =================================
+                                 SOLO ADMINISTRADOR
+                            ================================== -->
+
+                            <?php
+
+                            if (
+                                isset($_SESSION["rol"]) &&
+                                $_SESSION["rol"] ===
+                                "Administrador"
+                            ) {
+
+                                if (
+                                    $estado === "Activo"
+                                ) {
+
+                            ?>
+
+                                    <!-- DESACTIVAR -->
+
+                                    <a
+                                        href="eliminar_cliente.php?id=<?php
+                                            echo $idCliente;
+                                        ?>"
+                                        class="btn-eliminar"
+                                        onclick="
+                                            return confirm(
+                                                '¿Desea desactivar este cliente? Sus membresías y pagos se conservarán.'
+                                            );
+                                        ">
+
+                                        Desactivar
+
+                                    </a>
+
+                            <?php
+
+                                } else {
+
+                            ?>
+
+                                    <!-- REACTIVAR -->
+
+                                    <a
+                                        href="reactivar_cliente.php?id=<?php
+                                            echo $idCliente;
+                                        ?>"
+                                        class="btn-renovar"
+                                        onclick="
+                                            return confirm(
+                                                '¿Desea reactivar este cliente?'
+                                            );
+                                        ">
+
+                                        Reactivar
+
+                                    </a>
+
+                            <?php
+
+                                }
+
+                            }
+
+                            ?>
+
+                        </td>
+
+                    </tr>
+
+                <?php
+
+                }
+
+                ?>
+
+                    <!-- =================================
+                         SIN RESULTADOS DEL BUSCADOR
+                    ================================== -->
+
+                    <tr
+                        data-sin-resultados
+                        class="fila-busqueda-vacia"
+                        style="display:none;">
+
+                        <td colspan="10">
+
+                            No se encontraron clientes.
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
 
 </div>
 
-</div>
-
-</div>
+<!-- =========================================
+     JAVASCRIPT DE BÚSQUEDA Y ORDENAMIENTO
+========================================= -->
 
 <script src="../assets/js/tablas.js"></script>
 

@@ -2225,4 +2225,23 @@ th[data-ordenable].orden-desc::after{
 .acciones-pago {
     white-space: nowrap;
 }
+/* =========================================
+   CLIENTES ACTIVOS / INACTIVOS
+========================================= */
+
+.fila-cliente-inactivo{
+    opacity:0.68;
+}
+
+.fila-cliente-inactivo td{
+    background:rgba(70, 70, 70, 0.25);
+}
+
+.acciones-cliente{
+    display:flex;
+    gap:7px;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+}
 
