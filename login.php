@@ -3,15 +3,34 @@
 session_start();
 
 require_once("config/conexion.php");
+require_once("config/csrf.php");
 
 
 /* =========================================
-   SI YA HAY SESIÓN, IR AL DASHBOARD
+   EVITAR CACHÉ DEL LOGIN
+========================================= */
+
+header(
+    "Cache-Control: no-store, no-cache, must-revalidate, max-age=0"
+);
+
+header(
+    "Cache-Control: post-check=0, pre-check=0",
+    false
+);
+
+header("Pragma: no-cache");
+header("Expires: 0");
+
+
+/* =========================================
+   SI YA HAY SESIÓN
 ========================================= */
 
 if (
     isset($_SESSION["id_usuario"]) &&
-    isset($_SESSION["usuario"])
+    isset($_SESSION["usuario"]) &&
+    isset($_SESSION["rol"])
 ) {
 
     header(
@@ -23,7 +42,7 @@ if (
 
 
 /* =========================================
-   MENSAJE DE ERROR
+   MENSAJE
 ========================================= */
 
 $error = "";
@@ -35,166 +54,311 @@ $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $usuario =
-        trim(
-            $_POST["usuario"] ?? ""
-        );
-
-    $password =
-        $_POST["password"] ?? "";
-
 
     /* =====================================
-       VALIDAR CAMPOS
+       VALIDAR CSRF
     ====================================== */
 
+    $tokenRecibido =
+        $_POST["csrf_token"] ?? "";
+
+    $tokenSesion =
+        $_SESSION["csrf_token"] ?? "";
+
+
     if (
-        $usuario === "" ||
-        $password === ""
+        $tokenRecibido === "" ||
+        $tokenSesion === "" ||
+        !hash_equals(
+            $tokenSesion,
+            $tokenRecibido
+        )
     ) {
 
         $error =
-            "Ingrese usuario y contraseña.";
+            "La solicitud no es válida.";
 
     } else {
 
 
         /* =================================
-           BUSCAR USUARIO
+           RECIBIR DATOS
         ================================== */
 
-        $sql = "
-            SELECT
-                id_usuario,
-                nombre,
-                usuario,
-                password,
-                rol,
-                estado
-            FROM usuarios
-            WHERE usuario = ?
-            LIMIT 1
-        ";
-
-
-        $stmt =
-            mysqli_prepare(
-                $conexion,
-                $sql
+        $usuario =
+            trim(
+                $_POST["usuario"] ?? ""
             );
 
 
-        if (!$stmt) {
+        $password =
+            $_POST["password"] ?? "";
+
+
+        /* =================================
+           VALIDAR CAMPOS
+        ================================== */
+
+        if (
+            $usuario === "" ||
+            $password === ""
+        ) {
 
             $error =
-                "Ocurrió un error al procesar el inicio de sesión.";
+                "Ingrese usuario y contraseña.";
+
+        } elseif (
+            mb_strlen($usuario) > 50 ||
+            strlen($password) > 100
+        ) {
+
+            $error =
+                "Usuario o contraseña incorrectos.";
 
         } else {
 
 
-            mysqli_stmt_bind_param(
-                $stmt,
-                "s",
-                $usuario
-            );
+            /* =================================
+               BUSCAR USUARIO
+            ================================== */
+
+            $sql = "
+                SELECT
+                    id_usuario,
+                    nombre,
+                    usuario,
+                    password,
+                    rol,
+                    estado
+                FROM usuarios
+                WHERE usuario = ?
+                LIMIT 1
+            ";
 
 
-            mysqli_stmt_execute(
-                $stmt
-            );
-
-
-            $resultado =
-                mysqli_stmt_get_result(
-                    $stmt
+            $stmt =
+                mysqli_prepare(
+                    $conexion,
+                    $sql
                 );
 
 
-            $fila =
-                mysqli_fetch_assoc(
-                    $resultado
+            if (!$stmt) {
+
+                error_log(
+                    "Error preparando login: " .
+                    mysqli_error($conexion)
                 );
 
-
-            /* =============================
-               VALIDAR USUARIO
-            ============================== */
-
-            if (!$fila) {
-
                 $error =
-                    "Usuario o contraseña incorrectos.";
-
-            } elseif (
-                $fila["estado"] !== "Activo"
-            ) {
-
-                $error =
-                    "Este usuario se encuentra inactivo.";
-
-            } elseif (
-                !password_verify(
-                    $password,
-                    $fila["password"]
-                )
-            ) {
-
-                $error =
-                    "Usuario o contraseña incorrectos.";
+                    "Ocurrió un error al procesar el inicio de sesión.";
 
             } else {
 
 
-                /* =========================
-                   LOGIN CORRECTO
-                ========================== */
-
-                session_regenerate_id(
-                    true
+                mysqli_stmt_bind_param(
+                    $stmt,
+                    "s",
+                    $usuario
                 );
 
 
-                $_SESSION["id_usuario"] =
-                    (int)
-                    $fila["id_usuario"];
+                /* =================================
+                   EJECUTAR CONSULTA
+                ================================== */
+
+                if (
+                    !mysqli_stmt_execute(
+                        $stmt
+                    )
+                ) {
+
+                    error_log(
+                        "Error ejecutando login: " .
+                        mysqli_stmt_error($stmt)
+                    );
+
+                    $error =
+                        "Ocurrió un error al procesar el inicio de sesión.";
+
+                } else {
 
 
-                $_SESSION["nombre"] =
-                    $fila["nombre"];
+                    $resultado =
+                        mysqli_stmt_get_result(
+                            $stmt
+                        );
 
 
-                $_SESSION["usuario"] =
-                    $fila["usuario"];
+                    $fila =
+                        mysqli_fetch_assoc(
+                            $resultado
+                        );
 
 
-                $_SESSION["rol"] =
-                    $fila["rol"];
+                    /* =================================
+                       VALIDAR CREDENCIALES
+                    ================================== */
 
-                $_SESSION["ultima_actividad"] = time();
-                $_SESSION["ultima_regeneracion"] = time();
+                    if (
+                        !$fila ||
+                        !password_verify(
+                            $password,
+                            $fila["password"] ?? ""
+                        )
+                    ) {
+
+                        $error =
+                            "Usuario o contraseña incorrectos.";
+
+                    } elseif (
+                        $fila["estado"] !== "Activo"
+                    ) {
+
+                        $error =
+                            "Este usuario se encuentra inactivo.";
+
+                    } else {
 
 
-                /* =========================
-                   REDIRECCIÓN CORRECTA
-                ========================== */
+                        /* =================================
+                           ACTUALIZAR HASH SI ES NECESARIO
+                        ================================== */
 
-                header(
-                    "Location: /VicbamGym/dashboard.php"
+                        if (
+                            password_needs_rehash(
+                                $fila["password"],
+                                PASSWORD_DEFAULT
+                            )
+                        ) {
+
+                            $nuevoHash =
+                                password_hash(
+                                    $password,
+                                    PASSWORD_DEFAULT
+                                );
+
+
+                            if ($nuevoHash !== false) {
+
+                                $sqlHash = "
+                                    UPDATE usuarios
+                                    SET password = ?
+                                    WHERE id_usuario = ?
+                                ";
+
+
+                                $stmtHash =
+                                    mysqli_prepare(
+                                        $conexion,
+                                        $sqlHash
+                                    );
+
+
+                                if ($stmtHash) {
+
+                                    $idActualizar =
+                                        (int)
+                                        $fila["id_usuario"];
+
+
+                                    mysqli_stmt_bind_param(
+                                        $stmtHash,
+                                        "si",
+                                        $nuevoHash,
+                                        $idActualizar
+                                    );
+
+
+                                    if (
+                                        !mysqli_stmt_execute(
+                                            $stmtHash
+                                        )
+                                    ) {
+
+                                        error_log(
+                                            "No se pudo actualizar el hash del usuario ID " .
+                                            $idActualizar
+                                        );
+                                    }
+
+
+                                    mysqli_stmt_close(
+                                        $stmtHash
+                                    );
+                                }
+                            }
+                        }
+
+
+                        /* =================================
+                           LOGIN CORRECTO
+                        ================================== */
+
+                        session_regenerate_id(
+                            true
+                        );
+
+
+                        $_SESSION["id_usuario"] =
+                            (int)
+                            $fila["id_usuario"];
+
+
+                        $_SESSION["nombre"] =
+                            $fila["nombre"] ?? "";
+
+
+                        $_SESSION["usuario"] =
+                            $fila["usuario"];
+
+
+                        $_SESSION["rol"] =
+                            $fila["rol"];
+
+
+                        $_SESSION["ultima_actividad"] =
+                            time();
+
+
+                        $_SESSION["ultima_regeneracion"] =
+                            time();
+
+
+                        /* =================================
+                           RENOVAR TOKEN CSRF
+                        ================================== */
+
+                        $_SESSION["csrf_token"] =
+                            bin2hex(
+                                random_bytes(32)
+                            );
+
+
+                        /* =================================
+                           REDIRECCIÓN
+                        ================================== */
+
+                        mysqli_stmt_close(
+                            $stmt
+                        );
+
+
+                        header(
+                            "Location: /VicbamGym/dashboard.php"
+                        );
+
+                        exit();
+                    }
+                }
+
+
+                mysqli_stmt_close(
+                    $stmt
                 );
-
-                exit();
-
             }
-
-
-            mysqli_stmt_close(
-                $stmt
-            );
-
         }
-
     }
-
 }
 
 ?>
@@ -253,7 +417,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <?php
 
                 echo htmlspecialchars(
-                    $error
+                    $error,
+                    ENT_QUOTES,
+                    "UTF-8"
                 );
 
                 ?>
@@ -274,14 +440,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         >
 
 
+            <?php
+            echo csrf_field();
+            ?>
+
+
             <!-- USUARIO -->
 
             <div class="form-group">
 
                 <label for="usuario">
-
                     Usuario
-
                 </label>
 
 
@@ -289,14 +458,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     type="text"
                     name="usuario"
                     id="usuario"
+
+                    minlength="4"
                     maxlength="50"
+
+                    autocomplete="username"
                     required
                     autofocus
+
                     value="<?php
 
-                        echo isset($_POST["usuario"])
+                        echo isset(
+                            $_POST["usuario"]
+                        )
                             ? htmlspecialchars(
-                                $_POST["usuario"]
+                                $_POST["usuario"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             )
                             : "";
 
@@ -311,9 +489,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <div class="form-group">
 
                 <label for="password">
-
                     Contraseña
-
                 </label>
 
 
@@ -321,6 +497,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     type="password"
                     name="password"
                     id="password"
+
+                    maxlength="100"
+
+                    autocomplete="current-password"
                     required
                 >
 

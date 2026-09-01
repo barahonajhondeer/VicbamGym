@@ -1,43 +1,108 @@
 <?php
 
-require_once("../config/conexion.php");
 require_once("../config/verificar_sesion.php");
+require_once("../config/conexion.php");
 
-/* =================================
+
+/* =========================================
    RECIBIR FILTRO
-================================= */
+========================================= */
 
-$buscar = trim($_GET["buscar"] ?? "");
+$buscar = trim(
+    $_GET["buscar"] ?? ""
+);
 
-/* =================================
+
+/* =========================================
+   LIMITAR LONGITUD DEL FILTRO
+========================================= */
+
+if (mb_strlen($buscar) > 100) {
+
+    $buscar = mb_substr(
+        $buscar,
+        0,
+        100
+    );
+}
+
+
+/* =========================================
+   FUNCIÓN PARA ESCAPAR TEXTO
+========================================= */
+
+function e($valor)
+{
+    return htmlspecialchars(
+        (string) $valor,
+        ENT_QUOTES,
+        "UTF-8"
+    );
+}
+
+
+/* =========================================
    CONSULTAR CLIENTES
-================================= */
+========================================= */
 
-$sql = "SELECT
-            id_cliente,
-            cedula,
-            nombres,
-            apellidos,
-            telefono,
-            correo,
-            direccion,
-            fecha_registro
-        FROM clientes
-        WHERE
-            cedula LIKE ?
-            OR nombres LIKE ?
-            OR apellidos LIKE ?
-            OR telefono LIKE ?
-            OR correo LIKE ?
-            OR direccion LIKE ?
-        ORDER BY id_cliente DESC";
+$sql = "
+    SELECT
+        id_cliente,
+        cedula,
+        nombres,
+        apellidos,
+        telefono,
+        correo,
+        direccion,
+        fecha_registro,
+        estado
+    FROM clientes
+    WHERE
+        cedula LIKE ?
+        OR nombres LIKE ?
+        OR apellidos LIKE ?
+        OR telefono LIKE ?
+        OR correo LIKE ?
+        OR direccion LIKE ?
+    ORDER BY id_cliente DESC
+";
 
-$textoBuscar = "%" . $buscar . "%";
+
+$textoBuscar =
+    "%" . $buscar . "%";
+
 
 $stmt = mysqli_prepare(
     $conexion,
     $sql
 );
+
+
+/* =========================================
+   VALIDAR PREPARACIÓN
+========================================= */
+
+if (!$stmt) {
+
+    error_log(
+        "Error preparando reporte de clientes: " .
+        mysqli_error($conexion)
+    );
+
+    header(
+        "Location: reportes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo generar el reporte de clientes."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   ASIGNAR PARÁMETROS
+========================================= */
 
 mysqli_stmt_bind_param(
     $stmt,
@@ -50,19 +115,72 @@ mysqli_stmt_bind_param(
     $textoBuscar
 );
 
-mysqli_stmt_execute($stmt);
 
-$resultado = mysqli_stmt_get_result($stmt);
+/* =========================================
+   EJECUTAR CONSULTA
+========================================= */
+
+if (
+    !mysqli_stmt_execute(
+        $stmt
+    )
+) {
+
+    error_log(
+        "Error ejecutando reporte de clientes: " .
+        mysqli_stmt_error($stmt)
+    );
+
+    mysqli_stmt_close(
+        $stmt
+    );
+
+    header(
+        "Location: reportes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo generar el reporte de clientes."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   OBTENER RESULTADOS
+========================================= */
+
+$resultado =
+    mysqli_stmt_get_result(
+        $stmt
+    );
+
 
 if (!$resultado) {
 
-    die(
-        "Error al consultar los clientes: " .
-        mysqli_error($conexion)
+    error_log(
+        "Error obteniendo resultados del reporte de clientes."
     );
+
+    mysqli_stmt_close(
+        $stmt
+    );
+
+    header(
+        "Location: reportes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo obtener la información de los clientes."
+        )
+    );
+
+    exit();
 }
 
-$totalClientes = mysqli_num_rows($resultado);
+
+$totalClientes =
+    mysqli_num_rows(
+        $resultado
+    );
 
 ?>
 

@@ -1,67 +1,140 @@
 <?php
 
-require_once("../config/conexion.php");
 require_once("../config/verificar_sesion.php");
+require_once("../config/conexion.php");
 
 
-/* ===============================
-   OBTENER DATOS PARA EL RESUMEN
-================================ */
+/* =========================================
+   FUNCIÓN PARA CONSULTAS DE CONTEO
+========================================= */
 
-// Total de clientes
-$sqlClientes = "SELECT COUNT(*) AS total FROM clientes";
-$resultadoClientes = mysqli_query($conexion, $sqlClientes);
-$datosClientes = mysqli_fetch_assoc($resultadoClientes);
-$totalClientes = $datosClientes['total'] ?? 0;
+function obtenerTotal($conexion, $sql)
+{
+    $resultado = mysqli_query(
+        $conexion,
+        $sql
+    );
 
-// Membresías activas
-$sqlActivas = "SELECT COUNT(*) AS total
-               FROM membresias
-               WHERE estado = 'Activa'";
+    if (!$resultado) {
 
-$resultadoActivas = mysqli_query($conexion, $sqlActivas);
-$datosActivas = mysqli_fetch_assoc($resultadoActivas);
-$totalActivas = $datosActivas['total'] ?? 0;
+        error_log(
+            "Error en reporte: " .
+            mysqli_error($conexion)
+        );
 
-// Membresías vencidas
-$sqlVencidas = "SELECT COUNT(*) AS total
-                FROM membresias
-                WHERE estado = 'Vencida'";
+        return 0;
+    }
 
-$resultadoVencidas = mysqli_query($conexion, $sqlVencidas);
-$datosVencidas = mysqli_fetch_assoc($resultadoVencidas);
-$totalVencidas = $datosVencidas['total'] ?? 0;
+    $fila = mysqli_fetch_assoc(
+        $resultado
+    );
 
-// Total de ingresos
+    return $fila["total"] ?? 0;
+}
+
+
+/* =========================================
+   CLIENTES ACTIVOS
+========================================= */
+
+$sqlClientes = "
+    SELECT
+        COUNT(*) AS total
+    FROM clientes
+    WHERE estado = 'Activo'
+";
+
+$totalClientes =
+    (int) obtenerTotal(
+        $conexion,
+        $sqlClientes
+    );
+
+
+/* =========================================
+   MEMBRESÍAS ACTIVAS
+========================================= */
+
+$sqlActivas = "
+    SELECT
+        COUNT(*) AS total
+    FROM membresias
+    WHERE estado = 'Activa'
+";
+
+$totalActivas =
+    (int) obtenerTotal(
+        $conexion,
+        $sqlActivas
+    );
+
+
+/* =========================================
+   MEMBRESÍAS VENCIDAS
+========================================= */
+
+$sqlVencidas = "
+    SELECT
+        COUNT(*) AS total
+    FROM membresias
+    WHERE estado = 'Vencida'
+";
+
+$totalVencidas =
+    (int) obtenerTotal(
+        $conexion,
+        $sqlVencidas
+    );
+
+
+/* =========================================
+   INGRESOS REGISTRADOS
+========================================= */
+
 $sqlTotalIngresos = "
     SELECT
-
         COALESCE(
             SUM(valor),
             0
         ) AS total
-
     FROM pagos
-
     WHERE estado = 'Registrado'
 ";
 
-$resultadoTotalIngresos =
+
+$resultadoIngresos =
     mysqli_query(
         $conexion,
         $sqlTotalIngresos
     );
 
-$filaTotal =
-    mysqli_fetch_assoc(
-        $resultadoTotalIngresos
+
+$totalIngresos = 0;
+
+
+if (!$resultadoIngresos) {
+
+    error_log(
+        "Error consultando ingresos del reporte: " .
+        mysqli_error($conexion)
     );
 
-$totalIngresos =
-    (float) $filaTotal["total"];
+} else {
+
+    $filaIngresos =
+        mysqli_fetch_assoc(
+            $resultadoIngresos
+        );
+
+    $totalIngresos =
+        (float)
+        ($filaIngresos["total"] ?? 0);
+}
+
 ?>
 
 <!DOCTYPE html>
+
 <html lang="es">
 
 <head>
@@ -70,87 +143,161 @@ $totalIngresos =
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0">
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <title>Reportes | VICBAMGYM</title>
+    <title>
+        Reportes | VICBAMGYM
+    </title>
 
     <link
         rel="stylesheet"
-        href="../assets/css/styles.css">
+        href="../assets/css/styles.css"
+    >
 
 </head>
 
 <body class="reportes-body">
 
-<!-- ===============================
+
+<!-- =========================================
      MENÚ SUPERIOR
-================================ -->
+========================================= -->
 
 <nav class="navbar">
 
     <div class="logo-menu">
-        <h2>VICBAMGYM</h2>
+
+        <h2>
+            VICBAMGYM
+        </h2>
+
     </div>
+
 
     <ul class="menu">
 
         <li>
+
             <a href="../dashboard.php">
                 🏠 Dashboard
             </a>
+
         </li>
 
+
         <li>
+
             <a href="../clientes/clientes.php">
                 👥 Clientes
             </a>
+
         </li>
 
+
         <li>
+
             <a href="../membresias/membresias.php">
                 💳 Membresías
             </a>
+
         </li>
 
+
         <li>
+
             <a href="../pagos/pagos.php">
                 💰 Pagos
             </a>
+
         </li>
 
+
         <li>
-            <a href="reportes.php" class="menu-activo">
+
+            <a
+                href="reportes.php"
+                class="menu-activo"
+            >
                 📊 Reportes
             </a>
+
         </li>
+
+
+        <?php
+
+        if (
+            isset($_SESSION["rol"]) &&
+            $_SESSION["rol"] === "Administrador"
+        ) {
+
+        ?>
+
+            <li>
+
+                <a href="../usuarios/usuarios.php">
+                    👨‍💼 Usuarios
+                </a>
+
+            </li>
+
+        <?php
+
+        }
+
+        ?>
+
+
         <li>
-            <a href="../usuarios/usuarios.php">
-                👨‍💼 Usuarios
-            </a>
-        </li>
-        <li>
+
             <a href="../logout.php">
                 🚪 Salir
             </a>
+
         </li>
 
     </ul>
 
 </nav>
 
+
+<!-- =========================================
+     NOTIFICACIONES
+========================================= -->
+
 <?php
-require_once("../config/notificaciones.php");
+
+if (
+    file_exists(
+        "../config/notificaciones.php"
+    )
+) {
+
+    require_once(
+        "../config/notificaciones.php"
+    );
+}
+
 ?>
 
-<!-- ===============================
+
+<!-- =========================================
      CONTENIDO PRINCIPAL
-================================ -->
+========================================= -->
 
 <main class="reportes-contenido">
 
+
+    <!-- =====================================
+         ENCABEZADO
+    ====================================== -->
+
     <section class="encabezado-reportes">
 
-        <h1>GESTIÓN DE REPORTES</h1>
+        <h1>
+            GESTIÓN DE REPORTES
+        </h1>
 
         <p>
             Consulte la información general de clientes,
@@ -159,59 +306,102 @@ require_once("../config/notificaciones.php");
 
     </section>
 
-    <!-- RESUMEN GENERAL -->
+
+    <!-- =====================================
+         RESUMEN GENERAL
+    ====================================== -->
 
     <section class="resumen-reportes">
 
+
+        <!-- CLIENTES -->
+
         <div class="tarjeta-resumen">
 
-            <h3>Clientes registrados</h3>
+            <h3>
+                Clientes activos
+            </h3>
 
             <span>
-                <?php echo $totalClientes; ?>
+                <?php
+                echo $totalClientes;
+                ?>
             </span>
 
         </div>
 
+
+        <!-- MEMBRESÍAS ACTIVAS -->
+
         <div class="tarjeta-resumen">
 
-            <h3>Membresías activas</h3>
+            <h3>
+                Membresías activas
+            </h3>
 
             <span>
-                <?php echo $totalActivas; ?>
+                <?php
+                echo $totalActivas;
+                ?>
             </span>
 
         </div>
 
+
+        <!-- MEMBRESÍAS VENCIDAS -->
+
         <div class="tarjeta-resumen">
 
-            <h3>Membresías vencidas</h3>
+            <h3>
+                Membresías vencidas
+            </h3>
 
             <span>
-                <?php echo $totalVencidas; ?>
+                <?php
+                echo $totalVencidas;
+                ?>
             </span>
 
         </div>
 
+
+        <!-- INGRESOS -->
+
         <div class="tarjeta-resumen">
 
-            <h3>Ingresos registrados</h3>
+            <h3>
+                Ingresos registrados
+            </h3>
 
             <span>
-                $<?php echo number_format($totalIngresos, 2); ?>
+
+                $<?php
+                echo number_format(
+                    $totalIngresos,
+                    2
+                );
+                ?>
+
             </span>
 
         </div>
 
     </section>
 
-    <!-- TIPOS DE REPORTES -->
+
+    <!-- =====================================
+         TIPOS DE REPORTES
+    ====================================== -->
 
     <section class="opciones-reportes">
 
+
+        <!-- CLIENTES -->
+
         <a
             href="reporte_cliente.php"
-            class="enlace-reporte">
+            class="enlace-reporte"
+        >
 
             <article class="tarjeta-reporte">
 
@@ -219,10 +409,12 @@ require_once("../config/notificaciones.php");
                     👥
                 </div>
 
-                <h2>Reporte de clientes</h2>
+                <h2>
+                    Reporte de clientes
+                </h2>
 
                 <p>
-                    Consulte la información de todos los
+                    Consulte la información de los
                     clientes registrados en el gimnasio.
                 </p>
 
@@ -234,9 +426,13 @@ require_once("../config/notificaciones.php");
 
         </a>
 
+
+        <!-- MEMBRESÍAS -->
+
         <a
             href="reporte_membresias.php"
-            class="enlace-reporte">
+            class="enlace-reporte"
+        >
 
             <article class="tarjeta-reporte">
 
@@ -244,11 +440,14 @@ require_once("../config/notificaciones.php");
                     💳
                 </div>
 
-                <h2>Reporte de membresías</h2>
+                <h2>
+                    Reporte de membresías
+                </h2>
 
                 <p>
-                    Consulte membresías activas, vencidas,
-                    fechas y tipos de planes registrados.
+                    Consulte membresías activas,
+                    vencidas, fechas y tipos de
+                    planes registrados.
                 </p>
 
                 <span class="btn-reporte">
@@ -259,9 +458,13 @@ require_once("../config/notificaciones.php");
 
         </a>
 
+
+        <!-- PAGOS -->
+
         <a
             href="reporte_pagos.php"
-            class="enlace-reporte">
+            class="enlace-reporte"
+        >
 
             <article class="tarjeta-reporte">
 
@@ -269,11 +472,14 @@ require_once("../config/notificaciones.php");
                     💰
                 </div>
 
-                <h2>Reporte de pagos</h2>
+                <h2>
+                    Reporte de pagos
+                </h2>
 
                 <p>
-                    Consulte pagos por fechas, clientes,
-                    métodos de pago e ingresos registrados.
+                    Consulte pagos por fechas,
+                    clientes, métodos de pago e
+                    ingresos registrados.
                 </p>
 
                 <span class="btn-reporte">

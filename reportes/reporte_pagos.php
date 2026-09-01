@@ -1,74 +1,250 @@
 <?php
 
-require_once("../config/conexion.php");
 require_once("../config/verificar_sesion.php");
+require_once("../config/conexion.php");
 
-/* =================================
+
+/* =========================================
+   FUNCIÓN ESCAPAR
+========================================= */
+
+function e($valor)
+{
+    return htmlspecialchars(
+        (string) $valor,
+        ENT_QUOTES,
+        "UTF-8"
+    );
+}
+
+
+/* =========================================
+   VALIDAR FECHA
+========================================= */
+
+function fechaValida($fecha)
+{
+    if ($fecha === "") {
+        return true;
+    }
+
+    $objetoFecha =
+        DateTime::createFromFormat(
+            "Y-m-d",
+            $fecha
+        );
+
+    return
+        $objetoFecha !== false &&
+        $objetoFecha->format("Y-m-d") === $fecha;
+}
+
+
+/* =========================================
    RECIBIR FILTROS
-================================= */
+========================================= */
 
-$buscar = trim($_GET["buscar"] ?? "");
-$fecha_inicio = $_GET["fecha_inicio"] ?? "";
-$fecha_fin = $_GET["fecha_fin"] ?? "";
-$metodoFiltro = trim($_GET["metodo"] ?? "");
-
-/* =================================
-   CONSULTA BASE
-================================= */
-
-$sql = "SELECT
-            p.id_pago,
-            p.valor,
-            p.metodo_pago,
-            p.fecha_pago,
-
-            c.cedula,
-            c.nombres,
-            c.apellidos,
-
-            m.tipo
-
-        FROM pagos p
-
-        INNER JOIN clientes c
-            ON p.id_cliente = c.id_cliente
-
-        INNER JOIN membresias m
-            ON p.id_membresia = m.id_membresia
-
-        WHERE
-            (
-                c.cedula LIKE ?
-                OR c.nombres LIKE ?
-                OR c.apellidos LIKE ?
-                OR CONCAT(c.nombres, ' ', c.apellidos) LIKE ?
-            )
-
-            AND (
-                ? = ''
-                OR p.fecha_pago >= ?
-            )
-
-            AND (
-                ? = ''
-                OR p.fecha_pago <= ?
-            )
-
-            AND (
-                ? = ''
-                OR p.metodo_pago = ?
-            )
-
-        ORDER BY
-            p.fecha_pago DESC,
-            p.id_pago DESC";
-
-$textoBuscar = "%" . $buscar . "%";
-
-$stmt = mysqli_prepare(
-    $conexion,
-    $sql
+$buscar = trim(
+    $_GET["buscar"] ?? ""
 );
+
+$fecha_inicio = trim(
+    $_GET["fecha_inicio"] ?? ""
+);
+
+$fecha_fin = trim(
+    $_GET["fecha_fin"] ?? ""
+);
+
+$metodoFiltro = trim(
+    $_GET["metodo"] ?? ""
+);
+
+
+/* =========================================
+   LIMITAR BÚSQUEDA
+========================================= */
+
+if (
+    mb_strlen($buscar) > 100
+) {
+
+    $buscar = mb_substr(
+        $buscar,
+        0,
+        100
+    );
+}
+
+
+/* =========================================
+   VALIDAR FECHAS
+========================================= */
+
+if (
+    !fechaValida(
+        $fecha_inicio
+    )
+) {
+
+    $fecha_inicio = "";
+}
+
+
+if (
+    !fechaValida(
+        $fecha_fin
+    )
+) {
+
+    $fecha_fin = "";
+}
+
+
+/* =========================================
+   VALIDAR RANGO
+========================================= */
+
+if (
+    $fecha_inicio !== "" &&
+    $fecha_fin !== "" &&
+    $fecha_inicio > $fecha_fin
+) {
+
+    $temporal =
+        $fecha_inicio;
+
+    $fecha_inicio =
+        $fecha_fin;
+
+    $fecha_fin =
+        $temporal;
+}
+
+
+/* =========================================
+   MÉTODOS PERMITIDOS
+========================================= */
+
+$metodosPermitidos = [
+    "",
+    "Efectivo",
+    "Transferencia"
+];
+
+
+if (
+    !in_array(
+        $metodoFiltro,
+        $metodosPermitidos,
+        true
+    )
+) {
+
+    $metodoFiltro = "";
+}
+
+
+/* =========================================
+   CONSULTA
+========================================= */
+
+$sql = "
+    SELECT
+        p.id_pago,
+        p.valor,
+        p.metodo_pago,
+        p.fecha_pago,
+
+        c.cedula,
+        c.nombres,
+        c.apellidos,
+
+        m.tipo
+
+    FROM pagos p
+
+    INNER JOIN clientes c
+        ON p.id_cliente = c.id_cliente
+
+    INNER JOIN membresias m
+        ON p.id_membresia = m.id_membresia
+
+    WHERE
+        p.estado = 'Registrado'
+
+        AND (
+            c.cedula LIKE ?
+            OR c.nombres LIKE ?
+            OR c.apellidos LIKE ?
+            OR CONCAT(
+                c.nombres,
+                ' ',
+                c.apellidos
+            ) LIKE ?
+        )
+
+        AND (
+            ? = ''
+            OR p.fecha_pago >= ?
+        )
+
+        AND (
+            ? = ''
+            OR p.fecha_pago <= ?
+        )
+
+        AND (
+            ? = ''
+            OR p.metodo_pago = ?
+        )
+
+    ORDER BY
+        p.fecha_pago DESC,
+        p.id_pago DESC
+";
+
+
+/* =========================================
+   TEXTO DE BÚSQUEDA
+========================================= */
+
+$textoBuscar =
+    "%" . $buscar . "%";
+
+
+/* =========================================
+   PREPARAR CONSULTA
+========================================= */
+
+$stmt =
+    mysqli_prepare(
+        $conexion,
+        $sql
+    );
+
+
+if (!$stmt) {
+
+    error_log(
+        "Error preparando reporte de pagos: " .
+        mysqli_error($conexion)
+    );
+
+    header(
+        "Location: reportes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo generar el reporte de pagos."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   PARÁMETROS
+========================================= */
 
 mysqli_stmt_bind_param(
     $stmt,
@@ -89,36 +265,106 @@ mysqli_stmt_bind_param(
     $metodoFiltro
 );
 
-mysqli_stmt_execute($stmt);
 
-$resultado = mysqli_stmt_get_result($stmt);
+/* =========================================
+   EJECUTAR CONSULTA
+========================================= */
+
+if (
+    !mysqli_stmt_execute(
+        $stmt
+    )
+) {
+
+    error_log(
+        "Error ejecutando reporte de pagos: " .
+        mysqli_stmt_error($stmt)
+    );
+
+    mysqli_stmt_close(
+        $stmt
+    );
+
+    header(
+        "Location: reportes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo generar el reporte de pagos."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   OBTENER RESULTADOS
+========================================= */
+
+$resultado =
+    mysqli_stmt_get_result(
+        $stmt
+    );
+
 
 if (!$resultado) {
 
-    die(
-        "Error al consultar los pagos: " .
-        mysqli_error($conexion)
+    error_log(
+        "No se pudo obtener el resultado del reporte de pagos."
     );
+
+    mysqli_stmt_close(
+        $stmt
+    );
+
+    header(
+        "Location: reportes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo obtener la información de los pagos."
+        )
+    );
+
+    exit();
 }
 
-/* =================================
+
+/* =========================================
    GUARDAR RESULTADOS Y TOTALES
-================================= */
+========================================= */
 
 $pagos = [];
 
 $totalPagos = 0;
-$totalRecaudado = 0;
 
-while ($fila = mysqli_fetch_assoc($resultado)) {
+$totalRecaudado = 0.00;
 
-    $pagos[] = $fila;
+
+while (
+    $fila =
+    mysqli_fetch_assoc(
+        $resultado
+    )
+) {
+
+    $pagos[] =
+        $fila;
+
 
     $totalPagos++;
 
+
     $totalRecaudado +=
-        (float) $fila["valor"];
+        (float)
+        $fila["valor"];
 }
+
+
+/* =========================================
+   CERRAR STATEMENT
+========================================= */
+
+mysqli_stmt_close(
+    $stmt
+);
 
 ?>
 

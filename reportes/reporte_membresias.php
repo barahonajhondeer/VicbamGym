@@ -1,84 +1,294 @@
 <?php
 
-require_once("../config/conexion.php");
 require_once("../config/verificar_sesion.php");
+require_once("../config/conexion.php");
 
-/* =================================
-   ACTUALIZAR ESTADOS
-================================= */
 
-$sqlActualizar = "UPDATE membresias
-                  SET estado = 'Vencida'
-                  WHERE fecha_fin < CURDATE()
-                  AND estado <> 'Vencida'";
+/* =========================================
+   ACTUALIZAR MEMBRESÍAS VENCIDAS
+========================================= */
 
-mysqli_query($conexion, $sqlActualizar);
+$sqlActualizar = "
+    UPDATE membresias
+    SET estado = 'Vencida'
+    WHERE fecha_fin < CURDATE()
+    AND estado = 'Activa'
+";
 
-/* =================================
-   RECIBIR FILTROS
-================================= */
 
-$buscar = trim($_GET["buscar"] ?? "");
-$tipoFiltro = trim($_GET["tipo"] ?? "");
-$estadoFiltro = trim($_GET["estado"] ?? "");
+if (
+    !mysqli_query(
+        $conexion,
+        $sqlActualizar
+    )
+) {
 
-/* =================================
-   CONSULTA FILTRADA
-================================= */
-
-$sql = "SELECT
-            m.id_membresia,
-            c.cedula,
-            c.nombres,
-            c.apellidos,
-            m.tipo,
-            m.valor,
-            m.fecha_inicio,
-            m.fecha_fin,
-            m.estado
-        FROM membresias m
-        INNER JOIN clientes c
-            ON m.id_cliente = c.id_cliente
-        WHERE
-            (
-                c.cedula LIKE ?
-                OR c.nombres LIKE ?
-                OR c.apellidos LIKE ?
-                OR CONCAT(c.nombres, ' ', c.apellidos) LIKE ?
-            )
-            AND (? = '' OR m.tipo = ?)
-            AND (? = '' OR m.estado = ?)
-        ORDER BY m.id_membresia DESC";
-
-$textoBuscar = "%" . $buscar . "%";
-
-$stmt = mysqli_prepare($conexion, $sql);
-
-mysqli_stmt_bind_param(
-    $stmt,
-    "ssssssss",
-    $textoBuscar,
-    $textoBuscar,
-    $textoBuscar,
-    $textoBuscar,
-    $tipoFiltro,
-    $tipoFiltro,
-    $estadoFiltro,
-    $estadoFiltro
-);
-
-mysqli_stmt_execute($stmt);
-
-$resultado = mysqli_stmt_get_result($stmt);
-
-if (!$resultado) {
-    die(
-        "Error al consultar membresías: " .
+    error_log(
+        "Error actualizando estados de membresías en reporte: " .
         mysqli_error($conexion)
     );
 }
 
-/* Guardamos los registros para poder contar y luego mostrar */
+
+/* =========================================
+   RECIBIR FILTROS
+========================================= */
+
+$buscar = trim(
+    $_GET["buscar"] ?? ""
+);
+
+$tipoFiltro = trim(
+    $_GET["tipo"] ?? ""
+);
+
+$estadoFiltro = trim(
+    $_GET["estado"] ?? ""
+);
+
+
+/* =========================================
+   LIMITAR BÚSQUEDA
+========================================= */
+
+if (
+    mb_strlen($buscar) > 100
+) {
+
+    $buscar = mb_substr(
+        $buscar,
+        0,
+        100
+    );
+}
+
+
+/* =========================================
+   TIPOS PERMITIDOS
+========================================= */
+
+$tiposPermitidos = [
+    "",
+    "Mensual",
+    "Trimestral",
+    "Semestral",
+    "Anual"
+];
+
+
+if (
+    !in_array(
+        $tipoFiltro,
+        $tiposPermitidos,
+        true
+    )
+) {
+
+    $tipoFiltro = "";
+}
+
+
+/* =========================================
+   ESTADOS PERMITIDOS
+========================================= */
+
+$estadosPermitidos = [
+    "",
+    "Activa",
+    "Vencida"
+];
+
+
+if (
+    !in_array(
+        $estadoFiltro,
+        $estadosPermitidos,
+        true
+    )
+) {
+
+    $estadoFiltro = "";
+}
+
+
+/* =========================================
+   FUNCIÓN ESCAPAR
+========================================= */
+
+function e($valor)
+{
+    return htmlspecialchars(
+        (string) $valor,
+        ENT_QUOTES,
+        "UTF-8"
+    );
+}
+
+
+/* =========================================
+   CONSULTA FILTRADA
+========================================= */
+
+$sql = "
+    SELECT
+        m.id_membresia,
+        c.cedula,
+        c.nombres,
+        c.apellidos,
+        m.tipo,
+        m.valor,
+        m.fecha_inicio,
+        m.fecha_fin,
+        m.estado
+    FROM membresias m
+
+    INNER JOIN clientes c
+        ON m.id_cliente = c.id_cliente
+
+    WHERE
+        (
+            c.cedula LIKE ?
+            OR c.nombres LIKE ?
+            OR c.apellidos LIKE ?
+            OR CONCAT(
+                c.nombres,
+                ' ',
+                c.apellidos
+            ) LIKE ?
+        )
+
+        AND (
+            ? = ''
+            OR m.tipo = ?
+        )
+
+        AND (
+            ? = ''
+            OR m.estado = ?
+        )
+
+    ORDER BY
+        m.id_membresia DESC
+";
+
+
+/* =========================================
+   PREPARAR BÚSQUEDA
+========================================= */
+
+$textoBuscar =
+    "%" . $buscar . "%";
+
+
+$stmt = mysqli_prepare(
+    $conexion,
+    $sql
+);
+
+
+if (!$stmt) {
+
+    error_log(
+        "Error preparando reporte de membresías: " .
+        mysqli_error($conexion)
+    );
+
+    header(
+        "Location: reportes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo generar el reporte de membresías."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   ASIGNAR PARÁMETROS
+========================================= */
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "ssssssss",
+
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar,
+    $textoBuscar,
+
+    $tipoFiltro,
+    $tipoFiltro,
+
+    $estadoFiltro,
+    $estadoFiltro
+);
+
+
+/* =========================================
+   EJECUTAR
+========================================= */
+
+if (
+    !mysqli_stmt_execute(
+        $stmt
+    )
+) {
+
+    error_log(
+        "Error ejecutando reporte de membresías: " .
+        mysqli_stmt_error($stmt)
+    );
+
+    mysqli_stmt_close(
+        $stmt
+    );
+
+    header(
+        "Location: reportes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo generar el reporte de membresías."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   RESULTADO
+========================================= */
+
+$resultado =
+    mysqli_stmt_get_result(
+        $stmt
+    );
+
+
+if (!$resultado) {
+
+    error_log(
+        "No se pudo obtener el resultado del reporte de membresías."
+    );
+
+    mysqli_stmt_close(
+        $stmt
+    );
+
+    header(
+        "Location: reportes.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo obtener la información de las membresías."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   GUARDAR RESULTADOS
+========================================= */
 
 $membresias = [];
 
@@ -86,23 +296,49 @@ $totalMembresias = 0;
 $totalActivas = 0;
 $totalVencidas = 0;
 
-while ($fila = mysqli_fetch_assoc($resultado)) {
 
-    $membresias[] = $fila;
+while (
+    $fila =
+    mysqli_fetch_assoc(
+        $resultado
+    )
+) {
+
+    $membresias[] =
+        $fila;
+
 
     $totalMembresias++;
 
-    if ($fila["estado"] === "Activa") {
+
+    if (
+        $fila["estado"] ===
+        "Activa"
+    ) {
+
         $totalActivas++;
     }
 
-    if ($fila["estado"] === "Vencida") {
+
+    if (
+        $fila["estado"] ===
+        "Vencida"
+    ) {
+
         $totalVencidas++;
     }
 }
 
-?>
 
+/* =========================================
+   CERRAR STATEMENT
+========================================= */
+
+mysqli_stmt_close(
+    $stmt
+);
+
+?>
 <!DOCTYPE html>
 <html lang="es">
 
