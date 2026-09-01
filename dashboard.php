@@ -5,7 +5,7 @@ require_once("config/conexion.php");
 
 
 /* =========================================
-   TOTAL CLIENTES ACTIVOS
+   CLIENTES ACTIVOS
 ========================================= */
 
 $sqlClientes = "
@@ -75,25 +75,24 @@ $totalVencidas =
 
 /* =========================================
    INGRESOS DEL MES
-
-   IMPORTANTE:
    SOLO PAGOS REGISTRADOS
 ========================================= */
 
 $sqlIngresosMes = "
     SELECT
-        COALESCE(SUM(valor), 0) AS total
+        COALESCE(
+            SUM(valor),
+            0
+        ) AS total
     FROM pagos
-
     WHERE
         MONTH(fecha_pago) =
         MONTH(CURDATE())
-
     AND
         YEAR(fecha_pago) =
         YEAR(CURDATE())
-
-    AND estado = 'Registrado'
+    AND
+        estado = 'Registrado'
 ";
 
 $resultadoIngresosMes =
@@ -118,9 +117,7 @@ $ingresosMes =
 $sqlPagosHoy = "
     SELECT COUNT(*) AS total
     FROM pagos
-
     WHERE fecha_pago = CURDATE()
-
     AND estado = 'Registrado'
 ";
 
@@ -141,30 +138,25 @@ $pagosHoy =
 
 /* =========================================
    INGRESOS POR MES
-   PARA CHART.JS
 ========================================= */
 
 $sqlGrafico = "
     SELECT
-
         MONTH(fecha_pago) AS mes,
-
         COALESCE(
             SUM(valor),
             0
         ) AS total
-
     FROM pagos
-
     WHERE
         YEAR(fecha_pago) =
         YEAR(CURDATE())
-
-    AND estado = 'Registrado'
-
-    GROUP BY MONTH(fecha_pago)
-
-    ORDER BY MONTH(fecha_pago)
+    AND
+        estado = 'Registrado'
+    GROUP BY
+        MONTH(fecha_pago)
+    ORDER BY
+        MONTH(fecha_pago)
 ";
 
 $resultadoGrafico =
@@ -174,16 +166,11 @@ $resultadoGrafico =
     );
 
 
-/* =========================================
-   INICIALIZAR LOS 12 MESES
-========================================= */
-
 $ingresosPorMes = array_fill(
     1,
     12,
     0
 );
-
 
 while (
     $filaGrafico =
@@ -201,23 +188,25 @@ while (
 
 
 /* =========================================
-   MEMBRESÍAS PRÓXIMAS A VENCER
+   PRÓXIMAS A VENCER
+   5 DÍAS
 ========================================= */
 
 $sqlProximas = "
     SELECT
-
         m.id_membresia,
         m.tipo,
         m.fecha_fin,
 
+        c.cedula,
         c.nombres,
         c.apellidos
 
     FROM membresias m
 
     INNER JOIN clientes c
-        ON c.id_cliente = m.id_cliente
+        ON c.id_cliente =
+        m.id_cliente
 
     WHERE
         m.fecha_fin >= CURDATE()
@@ -229,9 +218,11 @@ $sqlProximas = "
             INTERVAL 5 DAY
         )
 
-    AND c.estado = 'Activo'
+    AND
+        c.estado = 'Activo'
 
-    ORDER BY m.fecha_fin ASC
+    ORDER BY
+        m.fecha_fin ASC
 ";
 
 $resultadoProximas =
@@ -240,9 +231,20 @@ $resultadoProximas =
         $sqlProximas
     );
 
+
+/* =========================================
+   TOTAL PRÓXIMAS A VENCER
+========================================= */
+
+$totalProximas =
+    mysqli_num_rows(
+        $resultadoProximas
+    );
+
 ?>
 
 <!DOCTYPE html>
+
 <html lang="es">
 
 <head>
@@ -251,357 +253,761 @@ $resultadoProximas =
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0">
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <title>Dashboard | VICBAMGYM</title>
+    <title>
+        Dashboard | VICBAMGYM
+    </title>
 
     <link
         rel="stylesheet"
-        href="assets/css/styles.css">
+        href="assets/css/styles.css"
+    >
+
+    <!-- CHART.JS -->
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 </head>
 
-<body class="dashboard-body">
+<body>
+
+
+<!-- =========================================
+     MENÚ
+========================================= -->
 
 <nav class="navbar">
 
     <div class="logo-menu">
-        <h2>VICBAMGYM</h2>
+
+        <h2>
+            VICBAMGYM
+        </h2>
+
     </div>
+
 
     <ul class="menu">
 
         <li>
-            <a href="dashboard.php" class="menu-activo">
+
+            <a
+                href="dashboard.php"
+                class="menu-activo"
+            >
                 🏠 Dashboard
             </a>
+
         </li>
 
+
         <li>
+
             <a href="clientes/clientes.php">
                 👥 Clientes
             </a>
+
         </li>
 
+
         <li>
+
             <a href="membresias/membresias.php">
                 💳 Membresías
             </a>
+
         </li>
 
+
         <li>
+
             <a href="pagos/pagos.php">
                 💰 Pagos
             </a>
+
         </li>
 
+
         <li>
+
             <a href="reportes/reportes.php">
                 📊 Reportes
             </a>
+
         </li>
 
-        <li>
-            <a href="usuarios/usuarios.php">
-                👨‍💼 Usuarios
-            </a>
-        </li>
+
+        <?php
+
+        if (
+            isset($_SESSION["rol"]) &&
+            $_SESSION["rol"] === "Administrador"
+        ) {
+
+        ?>
+
+            <li>
+
+                <a href="usuarios/usuarios.php">
+                    👨‍💼 Usuarios
+                </a>
+
+            </li>
+
+        <?php
+
+        }
+
+        ?>
+
 
         <li>
+
             <a href="logout.php">
                 🚪 Salir
             </a>
+
         </li>
 
     </ul>
 
 </nav>
 
-<?php
-require_once("config/notificaciones.php");
-?>
 
-<main class="dashboard-contenido">
 
-    <section class="dashboard-encabezado">
+<!-- =========================================
+     CONTENIDO PRINCIPAL
+========================================= -->
 
-        <h1>PANEL DE ADMINISTRACIÓN</h1>
+<div class="dashboard-container">
 
-        <p>
-            Resumen general y accesos principales del sistema VICBAMGYM.
-        </p>
 
-        <p class="usuario-sesion">
+    <!-- =====================================
+         BIENVENIDA
+    ====================================== -->
 
-Bienvenido:
+    <div class="dashboard-bienvenida">
 
-<strong>
-    <?php echo htmlspecialchars($_SESSION["usuario"]); ?>
-</strong>
+        <div>
 
-| Rol:
+            <h1>
+                Panel de control
+            </h1>
 
-<strong>
-    <?php echo htmlspecialchars($_SESSION["rol"]); ?>
-</strong>
 
-</p>
+            <p>
 
-    </section>
+                Bienvenido,
 
-    <section class="estadisticas-dashboard">
+                <strong>
 
-        <div class="estadistica-card">
+                    <?php
 
-            <div class="estadistica-icono">
+                    echo htmlspecialchars(
+                        $_SESSION["nombre"] ??
+                        $_SESSION["usuario"] ??
+                        "Usuario"
+                    );
+
+                    ?>
+
+                </strong>
+
+            </p>
+
+
+            <small>
+
+                Rol:
+
+                <?php
+
+                echo htmlspecialchars(
+                    $_SESSION["rol"] ?? ""
+                );
+
+                ?>
+
+            </small>
+
+        </div>
+
+
+        <!-- =================================
+             RESPALDO SOLO ADMIN
+        ================================== -->
+
+        <?php
+
+        if (
+            isset($_SESSION["rol"]) &&
+            $_SESSION["rol"] === "Administrador"
+        ) {
+
+        ?>
+
+            <div class="dashboard-respaldo">
+
+                <a
+                    href="respaldos/generar_respaldo.php"
+                    class="btn-respaldo"
+                >
+
+                    💾 Descargar respaldo
+
+                </a>
+
+            </div>
+
+        <?php
+
+        }
+
+        ?>
+
+    </div>
+
+
+
+    <!-- =====================================
+         TARJETAS
+    ====================================== -->
+
+    <div class="dashboard-cards">
+
+
+        <!-- CLIENTES -->
+
+        <div class="dashboard-card">
+
+            <div class="card-icono">
                 👥
             </div>
 
             <div>
 
-                <span>Clientes registrados</span>
+                <span>
+                    Clientes activos
+                </span>
 
-                <strong>
-                    <?php echo $totalClientes; ?>
-                </strong>
+                <h2>
+
+                    <?php
+                    echo $totalClientes;
+                    ?>
+
+                </h2>
 
             </div>
 
         </div>
 
-        <div class="estadistica-card estadistica-verde">
 
-            <div class="estadistica-icono">
+
+        <!-- MEMBRESÍAS ACTIVAS -->
+
+        <div class="dashboard-card">
+
+            <div class="card-icono">
                 ✅
             </div>
 
             <div>
 
-                <span>Membresías activas</span>
+                <span>
+                    Membresías activas
+                </span>
 
-                <strong>
-                    <?php echo $totalActivas; ?>
-                </strong>
+                <h2>
+
+                    <?php
+                    echo $totalActivas;
+                    ?>
+
+                </h2>
 
             </div>
 
         </div>
 
-        <div class="estadistica-card estadistica-roja">
 
-            <div class="estadistica-icono">
+
+        <!-- VENCIDAS -->
+
+        <div class="dashboard-card">
+
+            <div class="card-icono">
                 ⚠️
             </div>
 
             <div>
 
-                <span>Membresías vencidas</span>
+                <span>
+                    Membresías vencidas
+                </span>
 
-                <strong>
-                    <?php echo $totalVencidas; ?>
-                </strong>
+                <h2>
+
+                    <?php
+                    echo $totalVencidas;
+                    ?>
+
+                </h2>
 
             </div>
 
         </div>
 
-        <div class="estadistica-card estadistica-verde">
 
-            <div class="estadistica-icono">
+
+        <!-- INGRESOS MES -->
+
+        <div class="dashboard-card">
+
+            <div class="card-icono">
+                💵
+            </div>
+
+            <div>
+
+                <span>
+                    Ingresos del mes
+                </span>
+
+                <h2>
+
+                    $
+
+                    <?php
+
+                    echo number_format(
+                        $ingresosMes,
+                        2
+                    );
+
+                    ?>
+
+                </h2>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- PAGOS HOY -->
+
+        <div class="dashboard-card">
+
+            <div class="card-icono">
                 💰
             </div>
 
             <div>
 
-                <span>Ingresos del mes</span>
+                <span>
+                    Pagos realizados hoy
+                </span>
 
-                <strong>
-                    $<?php
-                    echo number_format(
-                        (float) $ingresosMes,
-                        2
-                    );
+                <h2>
+
+                    <?php
+                    echo $pagosHoy;
                     ?>
-                </strong>
+
+                </h2>
 
             </div>
 
         </div>
 
-        <div class="estadistica-card">
 
-            <div class="estadistica-icono">
-                📅
-            </div>
+    </div>
 
-            <div>
 
-                <span>Pagos realizados hoy</span>
 
-                <strong>
-                    <?php echo $pagosHoy; ?>
-                </strong>
+    <!-- =====================================
+         SEGUNDA FILA
+    ====================================== -->
 
-            </div>
+    <div class="dashboard-grid">
 
-        </div>
 
-    </section>
+        <!-- =================================
+             GRÁFICO
+        ================================== -->
 
-    <section class="dashboard-secciones">
+        <div class="dashboard-panel">
 
-        <div class="accesos-dashboard">
+            <h2>
+                Ingresos mensuales
+            </h2>
 
-            <h2>Accesos rápidos</h2>
 
-            <div class="dashboard-modulos">
+            <div class="grafico-dashboard">
 
-                <a href="clientes/clientes.php">
-
-                    <article class="modulo-dashboard">
-
-                        <span>👥</span>
-
-                        <h3>Clientes</h3>
-
-                        <p>
-                            Registrar y administrar clientes.
-                        </p>
-
-                    </article>
-
-                </a>
-
-                <a href="membresias/membresias.php">
-
-                    <article class="modulo-dashboard">
-
-                        <span>💳</span>
-
-                        <h3>Membresías</h3>
-
-                        <p>
-                            Gestionar planes y vencimientos.
-                        </p>
-
-                    </article>
-
-                </a>
-
-                <a href="pagos/pagos.php">
-
-                    <article class="modulo-dashboard">
-
-                        <span>💰</span>
-
-                        <h3>Pagos</h3>
-
-                        <p>
-                            Registrar y consultar pagos.
-                        </p>
-
-                    </article>
-
-                </a>
-
-                <a href="reportes/reportes.php">
-
-                    <article class="modulo-dashboard">
-
-                        <span>📊</span>
-
-                        <h3>Reportes</h3>
-
-                        <p>
-                            Consultar y exportar información.
-                        </p>
-
-                    </article>
-
-                </a>
+                <canvas
+                    id="graficoIngresos"
+                >
+                </canvas>
 
             </div>
 
         </div>
 
-        <aside class="alertas-dashboard">
 
-            <h2>Próximas a vencer</h2>
 
-            <?php
-            if (
-                $resultadoProximas &&
-                mysqli_num_rows($resultadoProximas) > 0
-            ) {
-            ?>
+        <!-- =================================
+             PRÓXIMAS A VENCER
+        ================================== -->
+
+        <div class="dashboard-panel">
+
+            <div class="panel-titulo">
+
+                <h2>
+                    Próximas a vencer
+                </h2>
+
+
+                <span class="badge-alerta">
+
+                    <?php
+                    echo $totalProximas;
+                    ?>
+
+                </span>
+
+            </div>
+
+
+            <div class="lista-proximas">
+
 
                 <?php
-                while (
-                    $proxima =
-                    mysqli_fetch_assoc($resultadoProximas)
+
+                if (
+                    $totalProximas === 0
                 ) {
+
                 ?>
 
-                    <div class="alerta-vencimiento">
+                    <div class="sin-datos-dashboard">
 
-                        <div>
-
-                            <strong>
-                                <?php
-                                echo htmlspecialchars(
-                                    $proxima['nombres'] .
-                                    " " .
-                                    $proxima['apellidos']
-                                );
-                                ?>
-                            </strong>
-
-                            <span>
-                                <?php
-                                echo htmlspecialchars(
-                                    $proxima['tipo']
-                                );
-                                ?>
-                            </span>
-
-                        </div>
-
-                        <div class="dias-restantes">
-
-                            <?php
-                            if (
-                                (int) $proxima['dias_restantes']
-                                === 0
-                            ) {
-                                echo "Vence hoy";
-                            } else {
-                                echo "Faltan " .
-                                     $proxima['dias_restantes'] .
-                                     " días";
-                            }
-                            ?>
-
-                        </div>
+                        No existen membresías
+                        próximas a vencer.
 
                     </div>
 
-                <?php } ?>
+                <?php
 
-            <?php } else { ?>
+                } else {
 
-                <div class="sin-alertas">
+                    while (
+                        $fila =
+                        mysqli_fetch_assoc(
+                            $resultadoProximas
+                        )
+                    ) {
 
-                    No existen membresías próximas a vencer.
+                        $fechaFin =
+                            new DateTime(
+                                $fila["fecha_fin"]
+                            );
 
-                </div>
+                        $hoy =
+                            new DateTime(
+                                date("Y-m-d")
+                            );
 
-            <?php } ?>
+                        $diferencia =
+                            $hoy->diff(
+                                $fechaFin
+                            );
 
-        </aside>
+                        $dias =
+                            (int)
+                            $diferencia->days;
 
-    </section>
+                ?>
 
-</main>
+                        <div class="item-proxima">
+
+
+                            <div class="datos-cliente-dashboard">
+
+                                <strong>
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $fila["nombres"] .
+                                        " " .
+                                        $fila["apellidos"]
+                                    );
+
+                                    ?>
+
+                                </strong>
+
+
+                                <small>
+
+                                    C.I.
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $fila["cedula"]
+                                    );
+
+                                    ?>
+
+                                </small>
+
+                            </div>
+
+
+                            <div class="datos-membresia-dashboard">
+
+                                <span>
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $fila["tipo"]
+                                    );
+
+                                    ?>
+
+                                </span>
+
+
+                                <small>
+
+                                    Vence:
+
+                                    <?php
+
+                                    echo date(
+                                        "d/m/Y",
+                                        strtotime(
+                                            $fila["fecha_fin"]
+                                        )
+                                    );
+
+                                    ?>
+
+                                </small>
+
+                            </div>
+
+
+                            <div class="dias-restantes">
+
+                                <?php
+
+                                if ($dias === 0) {
+
+                                    echo "Hoy";
+
+                                } elseif (
+                                    $dias === 1
+                                ) {
+
+                                    echo "1 día";
+
+                                } else {
+
+                                    echo
+                                        $dias .
+                                        " días";
+                                }
+
+                                ?>
+
+                            </div>
+
+                        </div>
+
+                <?php
+
+                    }
+
+                }
+
+                ?>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================
+     CHART.JS
+========================================= -->
+
+<script>
+
+const contexto =
+    document.getElementById(
+        "graficoIngresos"
+    );
+
+
+const ingresosMensuales = <?php
+
+    echo json_encode(
+        array_values(
+            $ingresosPorMes
+        )
+    );
+
+?>;
+
+
+new Chart(
+    contexto,
+    {
+
+        type: "bar",
+
+        data: {
+
+            labels: [
+
+                "Ene",
+                "Feb",
+                "Mar",
+                "Abr",
+                "May",
+                "Jun",
+                "Jul",
+                "Ago",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dic"
+
+            ],
+
+            datasets: [
+
+                {
+
+                    label:
+                        "Ingresos",
+
+                    data:
+                        ingresosMensuales,
+
+                    backgroundColor:
+                        "rgba(255, 0, 0, 0.75)",
+
+                    borderColor:
+                        "#ff0000",
+
+                    borderWidth:
+                        1,
+
+                    borderRadius:
+                        5
+
+                }
+
+            ]
+
+        },
+
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+
+            plugins: {
+
+                legend: {
+
+                    labels: {
+
+                        color:
+                            "#ffffff"
+
+                    }
+
+                }
+
+            },
+
+
+            scales: {
+
+                x: {
+
+                    ticks: {
+
+                        color:
+                            "#cccccc"
+
+                    },
+
+                    grid: {
+
+                        color:
+                            "rgba(255,255,255,.05)"
+
+                    }
+
+                },
+
+
+                y: {
+
+                    beginAtZero: true,
+
+                    ticks: {
+
+                        color:
+                            "#cccccc",
+
+                        callback:
+                            function(value) {
+
+                                return "$" + value;
+
+                            }
+
+                    },
+
+                    grid: {
+
+                        color:
+                            "rgba(255,255,255,.08)"
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+);
+
+</script>
+
 
 </body>
 

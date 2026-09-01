@@ -2,6 +2,13 @@
 
 require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
+require_once("../config/csrf.php");
+
+/* =========================================
+   VALIDAR CSRF
+========================================= */
+
+verificar_csrf();
 
 
 /* =========================================

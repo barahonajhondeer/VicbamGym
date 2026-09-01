@@ -1,5 +1,6 @@
 <?php
 
+require_once("../config/csrf.php");
 require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
 
@@ -47,12 +48,14 @@ $sqlPagos = "
         p.fecha_pago,
         p.estado,
         p.motivo_anulacion,
+        p.fecha_anulacion,
+        p.anulado_por,
 
         c.cedula,
         c.nombres,
         c.apellidos,
 
-        m.tipo
+        m.tipo,
 
         u.nombre AS usuario_anulacion
 
@@ -113,7 +116,7 @@ if (!$resultadoPagos) {
 
 
 <!-- =========================================
-     MENÚ PRINCIPAL
+     MENÚ
 ========================================= -->
 
 <nav class="navbar">
@@ -242,7 +245,7 @@ if (
 
 
     <!-- =====================================
-         FORMULARIO REGISTRO DE PAGO
+         FORMULARIO REGISTRO
     ====================================== -->
 
     <div class="form-container">
@@ -257,6 +260,7 @@ if (
             method="POST"
             id="formPago"
         >
+        <?php echo csrf_field(); ?>
 
 
             <!-- CLIENTE -->
@@ -443,7 +447,7 @@ if (
 
 
     <!-- =====================================
-         HISTORIAL DE PAGOS
+         HISTORIAL
     ====================================== -->
 
     <div
@@ -463,9 +467,7 @@ if (
             <div class="buscador-tabla">
 
                 <label for="buscarPagos">
-
                     Buscar pago
-
                 </label>
 
 
@@ -489,9 +491,7 @@ if (
         </div>
 
 
-        <!-- =================================
-             TABLA
-        ================================== -->
+        <!-- TABLA -->
 
         <div class="tabla-responsive">
 
@@ -508,16 +508,13 @@ if (
                             ID
                         </th>
 
-
                         <th data-ordenable>
                             Cliente
                         </th>
 
-
                         <th data-ordenable>
                             Membresía
                         </th>
-
 
                         <th
                             data-ordenable
@@ -526,11 +523,9 @@ if (
                             Valor
                         </th>
 
-
                         <th data-ordenable>
                             Método
                         </th>
-
 
                         <th
                             data-ordenable
@@ -539,11 +534,9 @@ if (
                             Fecha
                         </th>
 
-
                         <th data-ordenable>
                             Estado
                         </th>
-
 
                         <th>
                             Acciones
@@ -599,7 +592,7 @@ if (
                         </td>
 
 
-                        <!-- CLIENTE + CÉDULA -->
+                        <!-- CLIENTE -->
 
                         <td class="cliente-pago">
 
@@ -736,9 +729,7 @@ if (
                                 <span
                                     class="estado-activa"
                                 >
-
                                     Registrado
-
                                 </span>
 
                             <?php
@@ -750,11 +741,11 @@ if (
                                 <span
                                     class="estado-vencida"
                                 >
-
                                     Anulado
-
                                 </span>
 
+
+                                <!-- MOTIVO -->
 
                                 <?php
 
@@ -783,48 +774,86 @@ if (
                                         ?>
 
                                     </div>
-                                    <div class="auditoria-pago">
 
-                                    <?php
+                                <?php
 
-                                    if (
-                                        !empty(
-                                            $fila["usuario_anulacion"]
-                                        )
-                                    ) {
+                                }
 
-                                        echo "Anulado por: " .
-                                            htmlspecialchars(
-                                                $fila["usuario_anulacion"]
-                                            );
+                                ?>
 
-                                    }
 
-                                    ?>
+                                <!-- AUDITORÍA -->
 
-                                    <?php
+                                <?php
 
-                                    if (
-                                        !empty(
-                                            $fila["fecha_anulacion"]
-                                        )
-                                    ) {
+                                if (
+                                    !empty(
+                                        $fila[
+                                            "usuario_anulacion"
+                                        ]
+                                    ) ||
+                                    !empty(
+                                        $fila[
+                                            "fecha_anulacion"
+                                        ]
+                                    )
+                                ) {
 
-                                        echo "<br>";
+                                ?>
 
-                                        echo "Fecha: " .
-                                            date(
-                                                "d/m/Y H:i",
-                                                strtotime(
-                                                    $fila["fecha_anulacion"]
-                                                )
-                                            );
+                                    <div
+                                        class="auditoria-pago"
+                                    >
 
-                                    }
+                                        <?php
 
-                                    ?>
+                                        if (
+                                            !empty(
+                                                $fila[
+                                                    "usuario_anulacion"
+                                                ]
+                                            )
+                                        ) {
 
-                                </div>
+                                            echo
+                                                "Anulado por: " .
+                                                htmlspecialchars(
+                                                    $fila[
+                                                        "usuario_anulacion"
+                                                    ]
+                                                );
+                                        }
+
+                                        ?>
+
+
+                                        <?php
+
+                                        if (
+                                            !empty(
+                                                $fila[
+                                                    "fecha_anulacion"
+                                                ]
+                                            )
+                                        ) {
+
+                                            echo "<br>";
+
+                                            echo
+                                                "Fecha: " .
+                                                date(
+                                                    "d/m/Y H:i",
+                                                    strtotime(
+                                                        $fila[
+                                                            "fecha_anulacion"
+                                                        ]
+                                                    )
+                                                );
+                                        }
+
+                                        ?>
+
+                                    </div>
 
                                 <?php
 
@@ -885,9 +914,7 @@ if (
                                 <span
                                     class="texto-anulado"
                                 >
-
                                     Sin acciones
-
                                 </span>
 
                             <?php
@@ -909,7 +936,6 @@ if (
                         </td>
 
                     </tr>
-
 
                 <?php
 
@@ -972,6 +998,7 @@ if (
             action="anular_pago.php"
             method="POST"
         >
+        <?php echo csrf_field(); ?>
 
             <input
                 type="hidden"
@@ -1034,7 +1061,7 @@ if (
 
 
 <!-- =========================================
-     JS GENERAL DE TABLAS
+     JS TABLAS
 ========================================= -->
 
 <script src="../assets/js/tablas.js"></script>
@@ -1042,7 +1069,7 @@ if (
 
 
 <!-- =========================================
-     CARGAR MEMBRESÍAS DEL CLIENTE
+     OBTENER MEMBRESÍAS DEL CLIENTE
 ========================================= -->
 
 <script>
@@ -1072,6 +1099,10 @@ clienteSelect.addEventListener(
 
 
         valorInput.value = "";
+
+        valorInput.removeAttribute(
+            "max"
+        );
 
 
         if (!idCliente) {
@@ -1104,7 +1135,7 @@ clienteSelect.addEventListener(
                 if (!response.ok) {
 
                     throw new Error(
-                        "No se pudo consultar la membresía."
+                        "Error al consultar membresías"
                     );
                 }
 
@@ -1134,18 +1165,20 @@ clienteSelect.addEventListener(
                 }
 
 
-                const opcionInicial =
+                const inicial =
                     document.createElement(
                         "option"
                     );
 
-                opcionInicial.value = "";
 
-                opcionInicial.textContent =
+                inicial.value = "";
+
+                inicial.textContent =
                     "Seleccione una membresía";
 
+
                 membresiaSelect.appendChild(
-                    opcionInicial
+                    inicial
                 );
 
 
@@ -1177,6 +1210,7 @@ clienteSelect.addEventListener(
                             texto +=
                                 " | Vence: " +
                                 membresia.fecha_fin;
+
                         }
 
 
@@ -1190,6 +1224,7 @@ clienteSelect.addEventListener(
                                 parseFloat(
                                     membresia.saldo
                                 ).toFixed(2);
+
                         }
 
 
@@ -1228,8 +1263,7 @@ clienteSelect.addEventListener(
 
 
 /* =========================================
-   AL SELECCIONAR MEMBRESÍA,
-   COLOCAR SALDO MÁXIMO
+   COLOCAR SALDO AL SELECCIONAR MEMBRESÍA
 ========================================= */
 
 membresiaSelect.addEventListener(
@@ -1244,10 +1278,12 @@ membresiaSelect.addEventListener(
 
         if (
             !opcion ||
-            !opcion.dataset.saldo
+            opcion.value === "" ||
+            opcion.dataset.saldo === undefined
         ) {
 
             valorInput.value = "";
+
             valorInput.removeAttribute(
                 "max"
             );
@@ -1271,6 +1307,7 @@ membresiaSelect.addEventListener(
 
             valorInput.value =
                 saldo.toFixed(2);
+
         }
 
     }
@@ -1281,7 +1318,7 @@ membresiaSelect.addEventListener(
 
 
 <!-- =========================================
-     MODAL DE ANULACIÓN
+     MODAL ANULACIÓN
 ========================================= -->
 
 <script>
