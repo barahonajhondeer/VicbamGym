@@ -1,8 +1,22 @@
 <?php
 
-require_once("../config/csrf.php");
 require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
+require_once("../config/csrf.php");
+
+
+/* =========================================
+   FUNCIÓN PARA ESCAPAR TEXTO
+========================================= */
+
+function e($valor)
+{
+    return htmlspecialchars(
+        (string) $valor,
+        ENT_QUOTES,
+        "UTF-8"
+    );
+}
 
 
 /* =========================================
@@ -17,20 +31,26 @@ $sqlClientes = "
         apellidos
     FROM clientes
     WHERE estado = 'Activo'
-    ORDER BY nombres ASC, apellidos ASC
+    ORDER BY
+        nombres ASC,
+        apellidos ASC
 ";
+
 
 $resultadoClientes = mysqli_query(
     $conexion,
     $sqlClientes
 );
 
+
 if (!$resultadoClientes) {
 
-    die(
-        "Error al consultar clientes: " .
+    error_log(
+        "Error consultando clientes en pagos.php: " .
         mysqli_error($conexion)
     );
+
+    $resultadoClientes = false;
 }
 
 
@@ -70,20 +90,25 @@ $sqlPagos = "
     LEFT JOIN usuarios u
         ON u.id_usuario = p.anulado_por
 
-    ORDER BY p.id_pago DESC
+    ORDER BY
+        p.id_pago DESC
 ";
+
 
 $resultadoPagos = mysqli_query(
     $conexion,
     $sqlPagos
 );
 
+
 if (!$resultadoPagos) {
 
-    die(
-        "Error al consultar pagos: " .
+    error_log(
+        "Error consultando historial de pagos: " .
         mysqli_error($conexion)
     );
+
+    $resultadoPagos = false;
 }
 
 ?>
@@ -112,11 +137,12 @@ if (!$resultadoPagos) {
 
 </head>
 
+
 <body>
 
 
 <!-- =========================================
-     MENÚ
+     MENÚ SUPERIOR
 ========================================= -->
 
 <nav class="navbar">
@@ -135,7 +161,9 @@ if (!$resultadoPagos) {
         <li>
 
             <a href="../dashboard.php">
+
                 🏠 Dashboard
+
             </a>
 
         </li>
@@ -144,7 +172,9 @@ if (!$resultadoPagos) {
         <li>
 
             <a href="../clientes/clientes.php">
+
                 👥 Clientes
+
             </a>
 
         </li>
@@ -153,7 +183,9 @@ if (!$resultadoPagos) {
         <li>
 
             <a href="../membresias/membresias.php">
+
                 💳 Membresías
+
             </a>
 
         </li>
@@ -165,7 +197,9 @@ if (!$resultadoPagos) {
                 href="pagos.php"
                 class="menu-activo"
             >
+
                 💰 Pagos
+
             </a>
 
         </li>
@@ -174,7 +208,9 @@ if (!$resultadoPagos) {
         <li>
 
             <a href="../reportes/reportes.php">
+
                 📊 Reportes
+
             </a>
 
         </li>
@@ -192,7 +228,9 @@ if (!$resultadoPagos) {
             <li>
 
                 <a href="../usuarios/usuarios.php">
+
                     👨‍💼 Usuarios
+
                 </a>
 
             </li>
@@ -207,7 +245,9 @@ if (!$resultadoPagos) {
         <li>
 
             <a href="../logout.php">
+
                 🚪 Salir
+
             </a>
 
         </li>
@@ -245,7 +285,7 @@ if (
 
 
     <!-- =====================================
-         FORMULARIO REGISTRO
+         FORMULARIO REGISTRO DE PAGO
     ====================================== -->
 
     <div class="form-container">
@@ -260,15 +300,22 @@ if (
             method="POST"
             id="formPago"
         >
-        <?php echo csrf_field(); ?>
+
+            <?php
+            echo csrf_field();
+            ?>
 
 
-            <!-- CLIENTE -->
+            <!-- =================================
+                 CLIENTE
+            ================================== -->
 
             <div class="form-group">
 
                 <label for="id_cliente">
+
                     Cliente
+
                 </label>
 
 
@@ -279,43 +326,51 @@ if (
                 >
 
                     <option value="">
+
                         Seleccione un cliente
+
                     </option>
 
 
                     <?php
 
-                    while (
-                        $cliente =
-                        mysqli_fetch_assoc(
-                            $resultadoClientes
-                        )
-                    ) {
+                    if ($resultadoClientes) {
+
+                        while (
+                            $cliente =
+                            mysqli_fetch_assoc(
+                                $resultadoClientes
+                            )
+                        ) {
 
                     ?>
 
-                        <option
-                            value="<?php
-                                echo (int)
-                                $cliente["id_cliente"];
-                            ?>"
-                        >
+                            <option
+                                value="<?php
+                                    echo (int)
+                                    $cliente[
+                                        "id_cliente"
+                                    ];
+                                ?>"
+                            >
 
-                            <?php
+                                <?php
 
-                            echo htmlspecialchars(
-                                $cliente["cedula"] .
-                                " - " .
-                                $cliente["nombres"] .
-                                " " .
-                                $cliente["apellidos"]
-                            );
+                                echo e(
+                                    $cliente["cedula"] .
+                                    " - " .
+                                    $cliente["nombres"] .
+                                    " " .
+                                    $cliente["apellidos"]
+                                );
 
-                            ?>
+                                ?>
 
-                        </option>
+                            </option>
 
                     <?php
+
+                        }
 
                     }
 
@@ -326,12 +381,16 @@ if (
             </div>
 
 
-            <!-- MEMBRESÍA -->
+            <!-- =================================
+                 MEMBRESÍA
+            ================================== -->
 
             <div class="form-group">
 
                 <label for="id_membresia">
+
                     Membresía
+
                 </label>
 
 
@@ -342,7 +401,9 @@ if (
                 >
 
                     <option value="">
+
                         Seleccione primero un cliente
+
                     </option>
 
                 </select>
@@ -350,12 +411,16 @@ if (
             </div>
 
 
-            <!-- VALOR -->
+            <!-- =================================
+                 VALOR
+            ================================== -->
 
             <div class="form-group">
 
                 <label for="valor">
+
                     Valor del pago
+
                 </label>
 
 
@@ -363,21 +428,28 @@ if (
                     type="number"
                     name="valor"
                     id="valor"
+
                     min="0.01"
                     step="0.01"
+
                     placeholder="0.00"
+
                     required
                 >
 
             </div>
 
 
-            <!-- MÉTODO -->
+            <!-- =================================
+                 MÉTODO
+            ================================== -->
 
             <div class="form-group">
 
                 <label for="metodo_pago">
+
                     Método de pago
+
                 </label>
 
 
@@ -388,15 +460,23 @@ if (
                 >
 
                     <option value="">
+
                         Seleccione
+
                     </option>
+
 
                     <option value="Efectivo">
+
                         Efectivo
+
                     </option>
 
+
                     <option value="Transferencia">
+
                         Transferencia
+
                     </option>
 
                 </select>
@@ -404,12 +484,16 @@ if (
             </div>
 
 
-            <!-- FECHA -->
+            <!-- =================================
+                 FECHA
+            ================================== -->
 
             <div class="form-group">
 
                 <label for="fecha_pago">
+
                     Fecha de pago
+
                 </label>
 
 
@@ -417,19 +501,28 @@ if (
                     type="date"
                     name="fecha_pago"
                     id="fecha_pago"
+
                     value="<?php
-                        echo date("Y-m-d");
+                        echo date(
+                            "Y-m-d"
+                        );
                     ?>"
+
                     max="<?php
-                        echo date("Y-m-d");
+                        echo date(
+                            "Y-m-d"
+                        );
                     ?>"
+
                     required
                 >
 
             </div>
 
 
-            <!-- BOTÓN -->
+            <!-- =================================
+                 BOTÓN
+            ================================== -->
 
             <button
                 type="submit"
@@ -447,7 +540,7 @@ if (
 
 
     <!-- =====================================
-         HISTORIAL
+         HISTORIAL DE PAGOS
     ====================================== -->
 
     <div
@@ -460,14 +553,18 @@ if (
         </h2>
 
 
-        <!-- BUSCADOR -->
+        <!-- =================================
+             BUSCADOR
+        ================================== -->
 
         <div class="herramientas-tabla">
 
             <div class="buscador-tabla">
 
                 <label for="buscarPagos">
+
                     Buscar pago
+
                 </label>
 
 
@@ -475,7 +572,9 @@ if (
                     type="search"
                     id="buscarPagos"
                     data-buscador
+
                     placeholder="Cliente, cédula, membresía, método o estado"
+
                     autocomplete="off"
                 >
 
@@ -491,7 +590,9 @@ if (
         </div>
 
 
-        <!-- TABLA -->
+        <!-- =================================
+             TABLA
+        ================================== -->
 
         <div class="tabla-responsive">
 
@@ -505,41 +606,64 @@ if (
                             data-ordenable
                             data-tipo="numero"
                         >
+
                             ID
+
                         </th>
 
+
                         <th data-ordenable>
+
                             Cliente
+
                         </th>
 
+
                         <th data-ordenable>
+
                             Membresía
+
                         </th>
+
 
                         <th
                             data-ordenable
                             data-tipo="numero"
                         >
+
                             Valor
+
                         </th>
 
+
                         <th data-ordenable>
+
                             Método
+
                         </th>
+
 
                         <th
                             data-ordenable
                             data-tipo="fecha"
                         >
+
                             Fecha
+
                         </th>
+
 
                         <th data-ordenable>
+
                             Estado
+
                         </th>
 
+
                         <th>
+
                             Acciones
+
                         </th>
 
                     </tr>
@@ -549,35 +673,50 @@ if (
 
                 <tbody>
 
+
                 <?php
 
-                while (
-                    $fila =
-                    mysqli_fetch_assoc(
-                        $resultadoPagos
-                    )
-                ) {
+                if ($resultadoPagos) {
 
-                    $idPago =
-                        (int) $fila["id_pago"];
+                    while (
+                        $fila =
+                        mysqli_fetch_assoc(
+                            $resultadoPagos
+                        )
+                    ) {
 
-                    $estadoPago =
-                        $fila["estado"] ??
-                        "Registrado";
+                        $idPago =
+                            (int)
+                            $fila[
+                                "id_pago"
+                            ];
+
+
+                        $estadoPago =
+                            $fila[
+                                "estado"
+                            ] ??
+                            "Registrado";
 
                 ?>
 
+
                     <tr
                         class="<?php
+
                             echo
-                            $estadoPago === "Anulado"
-                            ? "fila-pago-anulado"
-                            : "";
+                                $estadoPago ===
+                                "Anulado"
+                                ? "fila-pago-anulado"
+                                : "";
+
                         ?>"
                     >
 
 
-                        <!-- ID -->
+                        <!-- =================================
+                             ID
+                        ================================== -->
 
                         <td
                             data-orden="<?php
@@ -592,7 +731,9 @@ if (
                         </td>
 
 
-                        <!-- CLIENTE -->
+                        <!-- =================================
+                             CLIENTE
+                        ================================== -->
 
                         <td class="cliente-pago">
 
@@ -600,7 +741,7 @@ if (
 
                                 <?php
 
-                                echo htmlspecialchars(
+                                echo e(
                                     $fila["nombres"] .
                                     " " .
                                     $fila["apellidos"]
@@ -617,7 +758,7 @@ if (
 
                                 <?php
 
-                                echo htmlspecialchars(
+                                echo e(
                                     $fila["cedula"]
                                 );
 
@@ -628,13 +769,21 @@ if (
                         </td>
 
 
-                        <!-- MEMBRESÍA -->
+                        <!-- =================================
+                             MEMBRESÍA
+                        ================================== -->
 
-                        <td>
+                        <td
+                            data-orden="<?php
+                                echo e(
+                                    $fila["tipo"]
+                                );
+                            ?>"
+                        >
 
                             <?php
 
-                            echo htmlspecialchars(
+                            echo e(
                                 $fila["tipo"]
                             );
 
@@ -643,13 +792,17 @@ if (
                         </td>
 
 
-                        <!-- VALOR -->
+                        <!-- =================================
+                             VALOR
+                        ================================== -->
 
                         <td
                             data-orden="<?php
+
                                 echo
-                                (float)
-                                $fila["valor"];
+                                    (float)
+                                    $fila["valor"];
+
                             ?>"
                         >
 
@@ -668,14 +821,26 @@ if (
                         </td>
 
 
-                        <!-- MÉTODO -->
+                        <!-- =================================
+                             MÉTODO
+                        ================================== -->
 
-                        <td>
+                        <td
+                            data-orden="<?php
+                                echo e(
+                                    $fila[
+                                        "metodo_pago"
+                                    ]
+                                );
+                            ?>"
+                        >
 
                             <?php
 
-                            echo htmlspecialchars(
-                                $fila["metodo_pago"]
+                            echo e(
+                                $fila[
+                                    "metodo_pago"
+                                ]
                             );
 
                             ?>
@@ -683,12 +848,16 @@ if (
                         </td>
 
 
-                        <!-- FECHA -->
+                        <!-- =================================
+                             FECHA
+                        ================================== -->
 
                         <td
                             data-orden="<?php
-                                echo htmlspecialchars(
-                                    $fila["fecha_pago"]
+                                echo e(
+                                    $fila[
+                                        "fecha_pago"
+                                    ]
                                 );
                             ?>"
                         >
@@ -698,7 +867,9 @@ if (
                             echo date(
                                 "d/m/Y",
                                 strtotime(
-                                    $fila["fecha_pago"]
+                                    $fila[
+                                        "fecha_pago"
+                                    ]
                                 )
                             );
 
@@ -707,13 +878,17 @@ if (
                         </td>
 
 
-                        <!-- ESTADO -->
+                        <!-- =================================
+                             ESTADO
+                        ================================== -->
 
                         <td
                             data-orden="<?php
-                                echo htmlspecialchars(
+
+                                echo e(
                                     $estadoPago
                                 );
+
                             ?>"
                         >
 
@@ -729,8 +904,11 @@ if (
                                 <span
                                     class="estado-activa"
                                 >
+
                                     Registrado
+
                                 </span>
+
 
                             <?php
 
@@ -741,11 +919,15 @@ if (
                                 <span
                                     class="estado-vencida"
                                 >
+
                                     Anulado
+
                                 </span>
 
 
-                                <!-- MOTIVO -->
+                                <!-- =========================
+                                     MOTIVO DE ANULACIÓN
+                                ========================== -->
 
                                 <?php
 
@@ -765,7 +947,7 @@ if (
 
                                         <?php
 
-                                        echo htmlspecialchars(
+                                        echo e(
                                             $fila[
                                                 "motivo_anulacion"
                                             ]
@@ -782,7 +964,9 @@ if (
                                 ?>
 
 
-                                <!-- AUDITORÍA -->
+                                <!-- =========================
+                                     AUDITORÍA
+                                ========================== -->
 
                                 <?php
 
@@ -805,6 +989,7 @@ if (
                                         class="auditoria-pago"
                                     >
 
+
                                         <?php
 
                                         if (
@@ -817,7 +1002,7 @@ if (
 
                                             echo
                                                 "Anulado por: " .
-                                                htmlspecialchars(
+                                                e(
                                                     $fila[
                                                         "usuario_anulacion"
                                                     ]
@@ -837,7 +1022,17 @@ if (
                                             )
                                         ) {
 
-                                            echo "<br>";
+                                            if (
+                                                !empty(
+                                                    $fila[
+                                                        "usuario_anulacion"
+                                                    ]
+                                                )
+                                            ) {
+
+                                                echo "<br>";
+                                            }
+
 
                                             echo
                                                 "Fecha: " .
@@ -870,9 +1065,12 @@ if (
                         </td>
 
 
-                        <!-- ACCIONES -->
+                        <!-- =================================
+                             ACCIONES
+                        ================================== -->
 
                         <td class="acciones-pago">
+
 
                             <?php
 
@@ -891,6 +1089,7 @@ if (
                                 <button
                                     type="button"
                                     class="btn-eliminar"
+
                                     onclick="abrirAnulacion(
                                         <?php
                                             echo $idPago;
@@ -901,6 +1100,7 @@ if (
                                     Anular
 
                                 </button>
+
 
                             <?php
 
@@ -914,7 +1114,9 @@ if (
                                 <span
                                     class="texto-anulado"
                                 >
+
                                     Sin acciones
+
                                 </span>
 
                             <?php
@@ -937,14 +1139,19 @@ if (
 
                     </tr>
 
+
                 <?php
+
+                    }
 
                 }
 
                 ?>
 
 
-                    <!-- SIN RESULTADOS -->
+                    <!-- =================================
+                         SIN RESULTADOS
+                    ================================== -->
 
                     <tr
                         data-sin-resultados
@@ -959,6 +1166,33 @@ if (
                         </td>
 
                     </tr>
+
+
+                    <?php
+
+                    if (!$resultadoPagos) {
+
+                    ?>
+
+                        <tr>
+
+                            <td
+                                colspan="8"
+                                style="text-align:center;"
+                            >
+
+                                No se pudo cargar el historial de pagos.
+
+                            </td>
+
+                        </tr>
+
+                    <?php
+
+                    }
+
+                    ?>
+
 
                 </tbody>
 
@@ -989,8 +1223,10 @@ if (
 
 
         <p>
+
             El pago permanecerá registrado,
             pero dejará de contar como ingreso.
+
         </p>
 
 
@@ -998,7 +1234,11 @@ if (
             action="anular_pago.php"
             method="POST"
         >
-        <?php echo csrf_field(); ?>
+
+            <?php
+            echo csrf_field();
+            ?>
+
 
             <input
                 type="hidden"
@@ -1019,9 +1259,12 @@ if (
                 <textarea
                     name="motivo_anulacion"
                     id="motivo_anulacion"
+
                     maxlength="255"
                     minlength="3"
+
                     required
+
                     placeholder="Ejemplo: pago registrado por error"
                 ></textarea>
 
@@ -1061,7 +1304,7 @@ if (
 
 
 <!-- =========================================
-     JS TABLAS
+     JAVASCRIPT TABLAS
 ========================================= -->
 
 <script src="../assets/js/tablas.js"></script>
@@ -1069,7 +1312,7 @@ if (
 
 
 <!-- =========================================
-     OBTENER MEMBRESÍAS DEL CLIENTE
+     CARGAR MEMBRESÍAS DEL CLIENTE
 ========================================= -->
 
 <script>
@@ -1079,16 +1322,22 @@ const clienteSelect =
         "id_cliente"
     );
 
+
 const membresiaSelect =
     document.getElementById(
         "id_membresia"
     );
+
 
 const valorInput =
     document.getElementById(
         "valor"
     );
 
+
+/* =========================================
+   AL CAMBIAR CLIENTE
+========================================= */
 
 clienteSelect.addEventListener(
     "change",
@@ -1098,12 +1347,16 @@ clienteSelect.addEventListener(
             this.value;
 
 
+        /* LIMPIAR VALOR */
+
         valorInput.value = "";
 
         valorInput.removeAttribute(
             "max"
         );
 
+
+        /* SIN CLIENTE */
 
         if (!idCliente) {
 
@@ -1116,11 +1369,15 @@ clienteSelect.addEventListener(
         }
 
 
+        /* MOSTRAR CARGANDO */
+
         membresiaSelect.innerHTML =
             "<option value=''>" +
             "Cargando..." +
             "</option>";
 
+
+        /* CONSULTAR SERVIDOR */
 
         fetch(
             "obtener_membresia.php?id_cliente=" +
@@ -1140,7 +1397,6 @@ clienteSelect.addEventListener(
                 }
 
                 return response.json();
-
             }
         )
 
@@ -1151,6 +1407,8 @@ clienteSelect.addEventListener(
                     "";
 
 
+                /* VALIDAR RESPUESTA */
+
                 if (
                     !Array.isArray(data) ||
                     data.length === 0
@@ -1158,12 +1416,14 @@ clienteSelect.addEventListener(
 
                     membresiaSelect.innerHTML =
                         "<option value=''>" +
-                        "El cliente no tiene membresías disponibles" +
+                        "El cliente no tiene membresías activas disponibles" +
                         "</option>";
 
                     return;
                 }
 
+
+                /* OPCIÓN INICIAL */
 
                 const inicial =
                     document.createElement(
@@ -1181,6 +1441,8 @@ clienteSelect.addEventListener(
                     inicial
                 );
 
+
+                /* AGREGAR MEMBRESÍAS */
 
                 data.forEach(
                     membresia => {
@@ -1210,7 +1472,6 @@ clienteSelect.addEventListener(
                             texto +=
                                 " | Vence: " +
                                 membresia.fecha_fin;
-
                         }
 
 
@@ -1219,12 +1480,20 @@ clienteSelect.addEventListener(
                             undefined
                         ) {
 
-                            texto +=
-                                " | Saldo: $" +
+                            const saldo =
                                 parseFloat(
                                     membresia.saldo
-                                ).toFixed(2);
+                                );
 
+
+                            if (
+                                !isNaN(saldo)
+                            ) {
+
+                                texto +=
+                                    " | Saldo: $" +
+                                    saldo.toFixed(2);
+                            }
                         }
 
 
@@ -1235,10 +1504,8 @@ clienteSelect.addEventListener(
                         membresiaSelect.appendChild(
                             opcion
                         );
-
                     }
                 );
-
             }
         )
 
@@ -1255,11 +1522,17 @@ clienteSelect.addEventListener(
                     "Error al cargar membresías" +
                     "</option>";
 
+
+                valorInput.value = "";
+
+                valorInput.removeAttribute(
+                    "max"
+                );
             }
         );
-
     }
 );
+
 
 
 /* =========================================
@@ -1299,17 +1572,25 @@ membresiaSelect.addEventListener(
 
 
         if (
-            !isNaN(saldo)
+            !isNaN(saldo) &&
+            saldo > 0
         ) {
 
             valorInput.max =
                 saldo.toFixed(2);
 
+
             valorInput.value =
                 saldo.toFixed(2);
 
-        }
+        } else {
 
+            valorInput.value = "";
+
+            valorInput.removeAttribute(
+                "max"
+            );
+        }
     }
 );
 
@@ -1318,37 +1599,51 @@ membresiaSelect.addEventListener(
 
 
 <!-- =========================================
-     MODAL ANULACIÓN
+     MODAL DE ANULACIÓN
 ========================================= -->
 
 <script>
 
+/* =========================================
+   ABRIR MODAL
+========================================= */
+
 function abrirAnulacion(idPago) {
 
-    document.getElementById(
-        "idPagoAnular"
-    ).value =
+    const campoId =
+        document.getElementById(
+            "idPagoAnular"
+        );
+
+
+    const motivo =
+        document.getElementById(
+            "motivo_anulacion"
+        );
+
+
+    const modal =
+        document.getElementById(
+            "modalAnulacion"
+        );
+
+
+    campoId.value =
         idPago;
 
 
-    document.getElementById(
-        "motivo_anulacion"
-    ).value =
+    motivo.value =
         "";
 
 
-    document.getElementById(
-        "modalAnulacion"
-    ).style.display =
+    modal.style.display =
         "flex";
 
 
     setTimeout(
         function () {
 
-            document.getElementById(
-                "motivo_anulacion"
-            ).focus();
+            motivo.focus();
 
         },
         100
@@ -1356,50 +1651,70 @@ function abrirAnulacion(idPago) {
 }
 
 
+/* =========================================
+   CERRAR MODAL
+========================================= */
+
 function cerrarAnulacion() {
 
-    document.getElementById(
-        "modalAnulacion"
-    ).style.display =
+    const modal =
+        document.getElementById(
+            "modalAnulacion"
+        );
+
+
+    modal.style.display =
         "none";
 
+
+    document.getElementById(
+        "idPagoAnular"
+    ).value =
+        "";
+
+
+    document.getElementById(
+        "motivo_anulacion"
+    ).value =
+        "";
 }
 
 
-/* CERRAR HACIENDO CLIC FUERA */
+/* =========================================
+   CERRAR HACIENDO CLIC FUERA
+========================================= */
 
 document.getElementById(
     "modalAnulacion"
 ).addEventListener(
     "click",
-    function(event) {
+    function (event) {
 
         if (
             event.target === this
         ) {
 
             cerrarAnulacion();
-
         }
-
     }
 );
 
 
-/* CERRAR CON ESC */
+/* =========================================
+   CERRAR CON ESC
+========================================= */
 
 document.addEventListener(
     "keydown",
-    function(event) {
+    function (event) {
 
         if (
-            event.key === "Escape"
+            event.key ===
+            "Escape"
         ) {
 
             cerrarAnulacion();
-
         }
-
     }
 );
 

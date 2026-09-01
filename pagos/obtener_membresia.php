@@ -3,28 +3,60 @@
 require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
 
+
+/* =========================================
+   RESPUESTA JSON
+========================================= */
+
 header(
     "Content-Type: application/json; charset=UTF-8"
 );
 
 
 /* =========================================
-   RECIBIR CLIENTE
+   SOLO GET
 ========================================= */
 
-$id_cliente =
-    (int) ($_GET["id_cliente"] ?? 0);
+if ($_SERVER["REQUEST_METHOD"] !== "GET") {
 
+    http_response_code(405);
 
-if ($id_cliente <= 0) {
+    echo json_encode([
+        "error" => "Método no permitido."
+    ]);
 
-    echo json_encode([]);
     exit();
 }
 
 
 /* =========================================
-   OBTENER MEMBRESÍAS DEL CLIENTE
+   RECIBIR CLIENTE
+========================================= */
+
+$id_cliente = filter_input(
+    INPUT_GET,
+    "id_cliente",
+    FILTER_VALIDATE_INT
+);
+
+
+if (
+    !$id_cliente ||
+    $id_cliente <= 0
+) {
+
+    echo json_encode(
+        [],
+        JSON_UNESCAPED_UNICODE
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   OBTENER MEMBRESÍAS ACTIVAS
+   CON PAGADO Y SALDO
 ========================================= */
 
 $sql = "
@@ -35,12 +67,26 @@ $sql = "
         m.fecha_inicio,
         m.fecha_fin,
         m.valor,
-        m.estado
+        m.estado,
+
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN p.estado = 'Registrado'
+                    THEN p.valor
+                    ELSE 0
+                END
+            ),
+            0
+        ) AS pagado
 
     FROM membresias m
 
     INNER JOIN clientes c
         ON c.id_cliente = m.id_cliente
+
+    LEFT JOIN pagos p
+        ON p.id_membresia = m.id_membresia
 
     WHERE
         m.id_cliente = ?
@@ -48,16 +94,48 @@ $sql = "
     AND
         c.estado = 'Activo'
 
+    AND
+        m.estado = 'Activa'
+
+    AND
+        m.fecha_fin >= CURDATE()
+
+    GROUP BY
+
+        m.id_membresia,
+        m.tipo,
+        m.fecha_inicio,
+        m.fecha_fin,
+        m.valor,
+        m.estado
+
     ORDER BY
         m.fecha_inicio DESC
 ";
 
 
-$stmt =
-    mysqli_prepare(
-        $conexion,
-        $sql
+$stmt = mysqli_prepare(
+    $conexion,
+    $sql
+);
+
+
+if (!$stmt) {
+
+    error_log(
+        "Error preparando consulta de membresías para pagos: " .
+        mysqli_error($conexion)
     );
+
+    http_response_code(500);
+
+    echo json_encode([
+        "error" =>
+            "No se pudo obtener la información."
+    ]);
+
+    exit();
+}
 
 
 mysqli_stmt_bind_param(
@@ -67,22 +145,42 @@ mysqli_stmt_bind_param(
 );
 
 
-mysqli_stmt_execute(
-    $stmt
-);
+if (
+    !mysqli_stmt_execute(
+        $stmt
+    )
+) {
 
+    error_log(
+        "Error ejecutando consulta de membresías para pagos: " .
+        mysqli_stmt_error($stmt)
+    );
 
-$resultado =
-    mysqli_stmt_get_result(
+    mysqli_stmt_close(
         $stmt
     );
+
+    http_response_code(500);
+
+    echo json_encode([
+        "error" =>
+            "No se pudo obtener la información."
+    ]);
+
+    exit();
+}
+
+
+$resultado = mysqli_stmt_get_result(
+    $stmt
+);
 
 
 $membresias = [];
 
 
 /* =========================================
-   CALCULAR PAGADO Y SALDO
+   PREPARAR RESPUESTA
 ========================================= */
 
 while (
@@ -92,79 +190,29 @@ while (
     )
 ) {
 
-    $idMembresia =
-        (int)
-        $membresia["id_membresia"];
-
-
-    /*
-       IMPORTANTE:
-       SOLO SUMAR PAGOS REGISTRADOS
-    */
-
-    $sqlPagado = "
-        SELECT
-
-            COALESCE(
-                SUM(valor),
-                0
-            ) AS pagado
-
-        FROM pagos
-
-        WHERE id_membresia = ?
-
-        AND estado = 'Registrado'
-    ";
-
-
-    $stmtPagado =
-        mysqli_prepare(
-            $conexion,
-            $sqlPagado
-        );
-
-
-    mysqli_stmt_bind_param(
-        $stmtPagado,
-        "i",
-        $idMembresia
+    $valorMembresia = round(
+        (float)
+        $membresia["valor"],
+        2
     );
 
 
-    mysqli_stmt_execute(
-        $stmtPagado
+    $pagado = round(
+        (float)
+        $membresia["pagado"],
+        2
     );
 
 
-    $resultadoPagado =
-        mysqli_stmt_get_result(
-            $stmtPagado
-        );
-
-
-    $filaPagado =
-        mysqli_fetch_assoc(
-            $resultadoPagado
-        );
-
-
-    $pagado =
-        (float)
-        $filaPagado["pagado"];
-
-
-    $valorMembresia =
-        (float)
-        $membresia["valor"];
-
-
-    $saldo =
+    $saldo = round(
         $valorMembresia -
-        $pagado;
+        $pagado,
+        2
+    );
 
 
     if ($saldo < 0) {
+
         $saldo = 0;
     }
 
@@ -172,7 +220,8 @@ while (
     $membresias[] = [
 
         "id_membresia" =>
-            $idMembresia,
+            (int)
+            $membresia["id_membresia"],
 
         "tipo" =>
             $membresia["tipo"],
@@ -196,15 +245,27 @@ while (
             $membresia["estado"]
 
     ];
-
-
-    mysqli_stmt_close(
-        $stmtPagado
-    );
 }
 
 
+/* =========================================
+   CERRAR CONSULTA
+========================================= */
+
+mysqli_stmt_close(
+    $stmt
+);
+
+
+/* =========================================
+   DEVOLVER JSON
+========================================= */
+
 echo json_encode(
     $membresias,
-    JSON_UNESCAPED_UNICODE
+    JSON_UNESCAPED_UNICODE |
+    JSON_PRESERVE_ZERO_FRACTION
 );
+
+exit();
+?>
