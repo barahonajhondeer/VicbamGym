@@ -1,16 +1,188 @@
 <?php
 
+require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
 require_once("../config/csrf.php");
 
-$id = $_GET['id'];
 
-$sql = "SELECT * FROM membresias
-WHERE id_membresia='$id'";
+/* =========================================
+   VALIDAR ID DE MEMBRESÍA
+========================================= */
 
-$resultado = mysqli_query($conexion,$sql);
+$id_membresia = filter_input(
+    INPUT_GET,
+    "id",
+    FILTER_VALIDATE_INT
+);
 
-$fila = mysqli_fetch_assoc($resultado);
+
+if (
+    !$id_membresia ||
+    $id_membresia <= 0
+) {
+
+    header(
+        "Location: membresias.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "La membresía seleccionada no es válida."
+        )
+    );
+
+    exit();
+}
+
+
+/* =========================================
+   CONSULTAR MEMBRESÍA
+========================================= */
+
+$sql = "
+    SELECT
+        id_membresia,
+        id_cliente,
+        tipo,
+        fecha_inicio,
+        fecha_fin,
+        fecha_limite_pago,
+        estado,
+        valor
+    FROM membresias
+    WHERE id_membresia = ?
+    LIMIT 1
+";
+
+
+$stmt = mysqli_prepare(
+    $conexion,
+    $sql
+);
+
+
+if (!$stmt) {
+
+    error_log(
+        "Error preparando consulta de membresía: " .
+        mysqli_error($conexion)
+    );
+
+    header(
+        "Location: membresias.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudo cargar la membresía."
+        )
+    );
+
+    exit();
+}
+
+
+mysqli_stmt_bind_param(
+    $stmt,
+    "i",
+    $id_membresia
+);
+
+
+mysqli_stmt_execute(
+    $stmt
+);
+
+
+$resultado =
+    mysqli_stmt_get_result(
+        $stmt
+    );
+
+
+if (
+    mysqli_num_rows(
+        $resultado
+    ) === 0
+) {
+
+    mysqli_stmt_close(
+        $stmt
+    );
+
+    header(
+        "Location: membresias.php?tipo=advertencia&mensaje=" .
+        urlencode(
+            "La membresía seleccionada no existe."
+        )
+    );
+
+    exit();
+}
+
+
+$fila =
+    mysqli_fetch_assoc(
+        $resultado
+    );
+
+
+mysqli_stmt_close(
+    $stmt
+);
+
+
+/* =========================================
+   CONSULTAR CLIENTES ACTIVOS
+========================================= */
+
+$sqlClientes = "
+    SELECT
+        id_cliente,
+        nombres,
+        apellidos
+    FROM clientes
+    WHERE estado = 'Activo'
+       OR id_cliente = ?
+    ORDER BY nombres, apellidos
+";
+
+
+$stmtClientes =
+    mysqli_prepare(
+        $conexion,
+        $sqlClientes
+    );
+
+
+if (!$stmtClientes) {
+
+    error_log(
+        "Error preparando consulta de clientes: " .
+        mysqli_error($conexion)
+    );
+
+    header(
+        "Location: membresias.php?tipo=error&mensaje=" .
+        urlencode(
+            "No se pudieron cargar los clientes."
+        )
+    );
+
+    exit();
+}
+
+
+mysqli_stmt_bind_param(
+    $stmtClientes,
+    "i",
+    $fila["id_cliente"]
+);
+
+
+mysqli_stmt_execute(
+    $stmtClientes
+);
+
+
+$resultadoClientes =
+    mysqli_stmt_get_result(
+        $stmtClientes
+    );
 
 ?>
 
@@ -20,143 +192,298 @@ $fila = mysqli_fetch_assoc($resultado);
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<title>Editar Membresía</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<link rel="stylesheet" href="../assets/css/styles.css">
+    <title>
+        Editar Membresía | VICBAMGYM
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="../assets/css/styles.css"
+    >
 
 </head>
 
+
 <body>
+
 
 <div class="form-container">
 
-<h2>EDITAR MEMBRESÍA</h2>
+    <h2>
+        EDITAR MEMBRESÍA
+    </h2>
 
-<form action="actualizar_membresia.php" method="POST">
-<?php echo csrf_field(); ?>
 
-<input
-type="hidden"
-name="id_membresia"
-value="<?php echo $fila['id_membresia']; ?>">
+    <form
+        action="actualizar_membresia.php"
+        method="POST"
+    >
 
-<div class="form-group">
+        <?php echo csrf_field(); ?>
 
-<label>Cliente</label>
 
-<select name="id_cliente" required>
+        <!-- =================================
+             ID MEMBRESÍA
+        ================================== -->
 
-<?php
+        <input
+            type="hidden"
+            name="id_membresia"
+            value="<?php
+                echo (int)
+                $fila["id_membresia"];
+            ?>"
+        >
 
-$sqlClientes = "SELECT
-id_cliente,
-nombres,
-apellidos
-FROM clientes
-ORDER BY nombres";
 
-$resultadoClientes = mysqli_query($conexion,$sqlClientes);
+        <!-- =================================
+             CLIENTE
+        ================================== -->
 
-while($cliente=mysqli_fetch_assoc($resultadoClientes))
-{
+        <div class="form-group">
 
-?>
+            <label for="id_cliente">
 
-<option
-value="<?php echo $cliente['id_cliente']; ?>"
+                Cliente
 
-<?php
+            </label>
 
-if($cliente['id_cliente']==$fila['id_cliente'])
-{
 
-echo "selected";
+            <select
+                name="id_cliente"
+                id="id_cliente"
+                required
+            >
 
-}
+                <?php
 
-?>
+                while (
+                    $cliente =
+                    mysqli_fetch_assoc(
+                        $resultadoClientes
+                    )
+                ) {
 
->
+                    $idCliente =
+                        (int)
+                        $cliente["id_cliente"];
 
-<?php
+                ?>
 
-echo $cliente['nombres']." ".$cliente['apellidos'];
+                    <option
+                        value="<?php
+                            echo $idCliente;
+                        ?>"
 
-?>
+                        <?php
 
-</option>
+                        if (
+                            $idCliente ===
+                            (int)
+                            $fila["id_cliente"]
+                        ) {
 
-<?php
+                            echo "selected";
+                        }
 
-}
+                        ?>
+                    >
 
-?>
+                        <?php
 
-</select>
+                        echo htmlspecialchars(
+                            $cliente["nombres"] .
+                            " " .
+                            $cliente["apellidos"],
+                            ENT_QUOTES,
+                            "UTF-8"
+                        );
+
+                        ?>
+
+                    </option>
+
+                <?php
+
+                }
+
+                ?>
+
+            </select>
+
+        </div>
+
+
+        <!-- =================================
+             TIPO DE MEMBRESÍA
+        ================================== -->
+
+        <div class="form-group">
+
+            <label for="tipo">
+
+                Tipo de Membresía
+
+            </label>
+
+
+            <select
+                name="tipo"
+                id="tipo"
+                required
+            >
+
+                <option
+                    value="Mensual"
+                    <?php
+                    if (
+                        $fila["tipo"] ===
+                        "Mensual"
+                    ) {
+                        echo "selected";
+                    }
+                    ?>
+                >
+
+                    Mensual
+
+                </option>
+
+
+                <option
+                    value="Trimestral"
+                    <?php
+                    if (
+                        $fila["tipo"] ===
+                        "Trimestral"
+                    ) {
+                        echo "selected";
+                    }
+                    ?>
+                >
+
+                    Trimestral
+
+                </option>
+
+
+                <option
+                    value="Semestral"
+                    <?php
+                    if (
+                        $fila["tipo"] ===
+                        "Semestral"
+                    ) {
+                        echo "selected";
+                    }
+                    ?>
+                >
+
+                    Semestral
+
+                </option>
+
+
+                <option
+                    value="Anual"
+                    <?php
+                    if (
+                        $fila["tipo"] ===
+                        "Anual"
+                    ) {
+                        echo "selected";
+                    }
+                    ?>
+                >
+
+                    Anual
+
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- =================================
+             FECHA DE INICIO
+        ================================== -->
+
+        <div class="form-group">
+
+            <label for="fecha_inicio">
+
+                Fecha Inicio
+
+            </label>
+
+
+            <input
+                type="date"
+                name="fecha_inicio"
+                id="fecha_inicio"
+
+                value="<?php
+                    echo htmlspecialchars(
+                        $fila["fecha_inicio"],
+                        ENT_QUOTES,
+                        "UTF-8"
+                    );
+                ?>"
+
+                max="<?php
+                    echo date("Y-m-d");
+                ?>"
+
+                required
+            >
+
+        </div>
+
+
+        <!-- =================================
+             ACTUALIZAR
+        ================================== -->
+
+        <button
+            type="submit"
+            class="btn-guardar"
+        >
+
+            Actualizar Membresía
+
+        </button>
+
+
+        <a
+            href="membresias.php"
+            class="btn-editar"
+        >
+
+            Cancelar
+
+        </a>
+
+    </form>
 
 </div>
 
-<div class="form-group">
 
-<label>Tipo de Membresía</label>
+<?php
 
-<select name="tipo">
+mysqli_stmt_close(
+    $stmtClientes
+);
 
-<option value="Mensual"
-<?php if($fila['tipo']=="Mensual") echo "selected"; ?>>
+?>
 
-Mensual
-
-</option>
-
-<option value="Trimestral"
-<?php if($fila['tipo']=="Trimestral") echo "selected"; ?>>
-
-Trimestral
-
-</option>
-
-<option value="Semestral"
-<?php if($fila['tipo']=="Semestral") echo "selected"; ?>>
-
-Semestral
-
-</option>
-
-<option value="Anual"
-<?php if($fila['tipo']=="Anual") echo "selected"; ?>>
-
-Anual
-
-</option>
-
-</select>
-
-</div>
-
-<div class="form-group">
-
-<label>Fecha Inicio</label>
-
-<input
-type="date"
-name="fecha_inicio"
-value="<?php echo $fila['fecha_inicio']; ?>"
-required>
-
-</div>
-
-<button class="btn-guardar">
-
-Actualizar Membresía
-
-</button>
-
-</form>
-
-</div>
 
 </body>
 
