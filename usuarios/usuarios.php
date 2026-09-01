@@ -2,33 +2,78 @@
 
 require_once("../config/verificar_sesion.php");
 require_once("../config/conexion.php");
+require_once("../config/csrf.php");
 
-if ($_SESSION["rol"] !== "Administrador") {
 
-    echo "<script>
-        alert('No tiene permisos para ingresar al módulo de usuarios.');
-        window.location='../dashboard.php';
-    </script>";
+/* =========================================
+   SOLO ADMINISTRADOR
+========================================= */
+
+if (
+    !isset($_SESSION["rol"]) ||
+    $_SESSION["rol"] !== "Administrador"
+) {
+
+    header(
+        "Location: ../dashboard.php?tipo=error&mensaje=" .
+        urlencode(
+            "No tiene permisos para ingresar al módulo de usuarios."
+        )
+    );
 
     exit();
 }
 
-$sql = "SELECT
-            id_usuario,
-            usuario,
-            rol
-        FROM usuarios
-        ORDER BY id_usuario DESC";
 
-$resultado = mysqli_query($conexion, $sql);
+/* =========================================
+   CONSULTAR USUARIOS
+========================================= */
+
+$sql = "
+    SELECT
+        id_usuario,
+        usuario,
+        rol,
+        estado
+    FROM usuarios
+    ORDER BY id_usuario DESC
+";
+
+
+$resultado = mysqli_query(
+    $conexion,
+    $sql
+);
+
 
 if (!$resultado) {
-    die("Error al consultar usuarios: " . mysqli_error($conexion));
+
+    error_log(
+        "Error consultando usuarios: " .
+        mysqli_error($conexion)
+    );
+
+    $resultado = false;
+}
+
+
+/* =========================================
+   FUNCIÓN ESCAPAR TEXTO
+========================================= */
+
+function e($valor)
+{
+    return htmlspecialchars(
+        (string) $valor,
+        ENT_QUOTES,
+        "UTF-8"
+    );
 }
 
 ?>
 
 <!DOCTYPE html>
+
 <html lang="es">
 
 <head>
@@ -37,103 +82,201 @@ if (!$resultado) {
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0">
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <title>Usuarios | VICBAMGYM</title>
+    <title>
+        Usuarios | VICBAMGYM
+    </title>
 
     <link
         rel="stylesheet"
-        href="../assets/css/styles.css">
+        href="../assets/css/styles.css"
+    >
 
 </head>
 
 <body>
 
+
+<!-- =========================================
+     MENÚ
+========================================= -->
+
 <nav class="navbar">
 
     <div class="logo-menu">
-        <h2>VICBAMGYM</h2>
+
+        <h2>
+            VICBAMGYM
+        </h2>
+
     </div>
+
 
     <ul class="menu">
 
         <li>
-            <a href="../dashboard.php">🏠 Dashboard</a>
+            <a href="../dashboard.php">
+                🏠 Dashboard
+            </a>
         </li>
 
         <li>
-            <a href="../clientes/clientes.php">👥 Clientes</a>
+            <a href="../clientes/clientes.php">
+                👥 Clientes
+            </a>
         </li>
 
         <li>
-            <a href="../membresias/membresias.php">💳 Membresías</a>
+            <a href="../membresias/membresias.php">
+                💳 Membresías
+            </a>
         </li>
 
         <li>
-            <a href="../pagos/pagos.php">💰 Pagos</a>
+            <a href="../pagos/pagos.php">
+                💰 Pagos
+            </a>
         </li>
 
         <li>
-            <a href="../reportes/reportes.php">📊 Reportes</a>
+            <a href="../reportes/reportes.php">
+                📊 Reportes
+            </a>
         </li>
 
         <li>
-            <a href="usuarios.php" class="menu-activo">👨‍💼 Usuarios</a>
+            <a
+                href="usuarios.php"
+                class="menu-activo"
+            >
+                👨‍💼 Usuarios
+            </a>
         </li>
 
         <li>
-            <a href="../logout.php">🚪 Salir</a>
+            <a href="../logout.php">
+                🚪 Salir
+            </a>
         </li>
 
     </ul>
 
 </nav>
 
+
+<!-- =========================================
+     NOTIFICACIONES
+========================================= -->
+
 <?php
-require_once("../config/notificaciones.php");
+
+if (
+    file_exists(
+        "../config/notificaciones.php"
+    )
+) {
+
+    require_once(
+        "../config/notificaciones.php"
+    );
+}
+
 ?>
+
+
+<!-- =========================================
+     CONTENIDO
+========================================= -->
 
 <div class="contenedor-principal">
 
+
+    <!-- =====================================
+         REGISTRO DE USUARIO
+    ====================================== -->
+
     <div class="form-container">
 
-        <h2>REGISTRO DE USUARIOS</h2>
+        <h2>
+            REGISTRO DE USUARIOS
+        </h2>
+
 
         <form
             action="guardar_usuario.php"
-            method="POST">
+            method="POST"
+            autocomplete="off"
+        >
+
+            <?php
+            echo csrf_field();
+            ?>
+
+
+            <!-- USUARIO -->
 
             <div class="form-group">
 
-                <label>Usuario</label>
+                <label for="usuario">
+                    Usuario
+                </label>
+
 
                 <input
                     type="text"
                     name="usuario"
+                    id="usuario"
+
+                    minlength="4"
                     maxlength="50"
-                    required>
+
+                    autocomplete="off"
+                    required
+                >
 
             </div>
 
+
+            <!-- CONTRASEÑA -->
+
             <div class="form-group">
 
-                <label>Contraseña</label>
+                <label for="password">
+                    Contraseña
+                </label>
+
 
                 <input
                     type="password"
                     name="password"
-                    minlength="6"
-                    required>
+                    id="password"
+
+                    minlength="8"
+                    maxlength="100"
+
+                    autocomplete="new-password"
+                    required
+                >
 
             </div>
 
+
+            <!-- ROL -->
+
             <div class="form-group">
 
-                <label>Rol</label>
+                <label for="rol">
+                    Rol
+                </label>
+
 
                 <select
                     name="rol"
-                    required>
+                    id="rol"
+                    required
+                >
 
                     <option value="">
                         Seleccione un rol
@@ -151,9 +294,13 @@ require_once("../config/notificaciones.php");
 
             </div>
 
+
+            <!-- BOTÓN -->
+
             <button
                 type="submit"
-                class="btn-guardar">
+                class="btn-guardar"
+            >
 
                 Guardar Usuario
 
@@ -163,110 +310,334 @@ require_once("../config/notificaciones.php");
 
     </div>
 
+
+    <!-- =====================================
+         TABLA DE USUARIOS
+    ====================================== -->
+
     <div class="tabla-container">
 
-        <h2>USUARIOS REGISTRADOS</h2>
+        <h2>
+            USUARIOS REGISTRADOS
+        </h2>
 
-        <table>
 
-            <thead>
+        <div class="tabla-responsive">
 
-                <tr>
+            <table>
 
-                    <th>ID</th>
-                    <th>Usuario</th>
-                    <th>Rol</th>
-                    <th>Acciones</th>
+                <thead>
 
-                </tr>
+                    <tr>
 
-            </thead>
+                        <th>ID</th>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
 
-            <tbody>
+                    </tr>
 
-            <?php while ($fila = mysqli_fetch_assoc($resultado)) { ?>
+                </thead>
 
-                <tr>
 
-                    <td>
-                        <?php echo $fila["id_usuario"]; ?>
-                    </td>
+                <tbody>
 
-                    <td>
-                        <?php
-                        echo htmlspecialchars(
-                            $fila["usuario"]
-                        );
-                        ?>
-                    </td>
 
-                    <td>
+                <?php
 
-                        <?php if ($fila["rol"] === "Administrador") { ?>
+                if ($resultado) {
 
-                            <span class="rol-administrador">
-                                Administrador
-                            </span>
+                    while (
+                        $fila =
+                        mysqli_fetch_assoc(
+                            $resultado
+                        )
+                    ) {
 
-                        <?php } else { ?>
+                        $idUsuario =
+                            (int)
+                            $fila["id_usuario"];
 
-                            <span class="rol-recepcionista">
-                                Recepcionista
-                            </span>
 
-                        <?php } ?>
+                        $esUsuarioActual =
+                            $idUsuario ===
+                            (int)
+                            $_SESSION["id_usuario"];
 
-                    </td>
 
-                    <td>
+                        $estadoUsuario =
+                            $fila["estado"] ??
+                            "Activo";
 
-                        <a
-                            href="editar_usuario.php?id=<?php
-                                echo $fila["id_usuario"];
-                            ?>"
-                            class="btn-editar">
+                ?>
 
-                            Editar
 
-                        </a>
+                    <tr>
 
-                        <?php
-                        if (
-                            (int) $fila["id_usuario"] !==
-                            (int) $_SESSION["id_usuario"]
-                        ) {
-                        ?>
+
+                        <!-- ID -->
+
+                        <td>
+                            <?php
+                            echo $idUsuario;
+                            ?>
+                        </td>
+
+
+                        <!-- USUARIO -->
+
+                        <td>
+
+                            <?php
+
+                            echo e(
+                                $fila["usuario"]
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                        <!-- ROL -->
+
+                        <td>
+
+                            <?php
+
+                            if (
+                                $fila["rol"] ===
+                                "Administrador"
+                            ) {
+
+                            ?>
+
+                                <span class="rol-administrador">
+                                    Administrador
+                                </span>
+
+                            <?php
+
+                            } else {
+
+                            ?>
+
+                                <span class="rol-recepcionista">
+                                    Recepcionista
+                                </span>
+
+                            <?php
+
+                            }
+
+                            ?>
+
+                        </td>
+
+
+                        <!-- ESTADO -->
+
+                        <td>
+
+                            <?php
+
+                            if (
+                                $estadoUsuario ===
+                                "Activo"
+                            ) {
+
+                            ?>
+
+                                <span class="estado-activa">
+                                    Activo
+                                </span>
+
+                            <?php
+
+                            } else {
+
+                            ?>
+
+                                <span class="estado-vencida">
+                                    Inactivo
+                                </span>
+
+                            <?php
+
+                            }
+
+                            ?>
+
+                        </td>
+
+
+                        <!-- ACCIONES -->
+
+                        <td>
+
+
+                            <!-- EDITAR -->
 
                             <a
-                                href="eliminar_usuario.php?id=<?php
-                                    echo $fila["id_usuario"];
+                                href="editar_usuario.php?id=<?php
+                                    echo $idUsuario;
                                 ?>"
-                                class="btn-eliminar"
-                                onclick="return confirm(
-                                    '¿Desea eliminar este usuario?'
-                                )">
+                                class="btn-editar"
+                            >
 
-                                Eliminar
+                                Editar
 
                             </a>
 
-                        <?php } else { ?>
 
-                            <span class="usuario-actual">
-                                Sesión actual
-                            </span>
+                            <?php
 
-                        <?php } ?>
+                            if (!$esUsuarioActual) {
 
-                    </td>
+                                if (
+                                    $estadoUsuario ===
+                                    "Activo"
+                                ) {
 
-                </tr>
+                            ?>
 
-            <?php } ?>
+                                    <!-- DESACTIVAR -->
 
-            </tbody>
+                                    <form
+                                        action="eliminar_usuario.php"
+                                        method="POST"
+                                        style="display:inline;"
+                                        onsubmit="return confirm(
+                                            '¿Desea desactivar este usuario?'
+                                        );"
+                                    >
 
-        </table>
+                                        <?php
+                                        echo csrf_field();
+                                        ?>
+
+
+                                        <input
+                                            type="hidden"
+                                            name="id_usuario"
+                                            value="<?php
+                                                echo $idUsuario;
+                                            ?>"
+                                        >
+
+
+                                        <button
+                                            type="submit"
+                                            class="btn-eliminar"
+                                        >
+
+                                            Desactivar
+
+                                        </button>
+
+                                    </form>
+
+
+                            <?php
+
+                                } else {
+
+                            ?>
+
+
+                                    <!-- REACTIVAR -->
+
+                                    <form
+                                        action="reactivar_usuario.php"
+                                        method="POST"
+                                        style="display:inline;"
+                                    >
+
+                                        <?php
+                                        echo csrf_field();
+                                        ?>
+
+
+                                        <input
+                                            type="hidden"
+                                            name="id_usuario"
+                                            value="<?php
+                                                echo $idUsuario;
+                                            ?>"
+                                        >
+
+
+                                        <button
+                                            type="submit"
+                                            class="btn-editar"
+                                        >
+
+                                            Reactivar
+
+                                        </button>
+
+                                    </form>
+
+
+                            <?php
+
+                                }
+
+                            } else {
+
+                            ?>
+
+                                <span class="usuario-actual">
+                                    Sesión actual
+                                </span>
+
+                            <?php
+
+                            }
+
+                            ?>
+
+                        </td>
+
+                    </tr>
+
+
+                <?php
+
+                    }
+
+                } else {
+
+                ?>
+
+
+                    <tr>
+
+                        <td
+                            colspan="5"
+                            style="text-align:center;"
+                        >
+
+                            No se pudo cargar la lista de usuarios.
+
+                        </td>
+
+                    </tr>
+
+
+                <?php
+
+                }
+
+                ?>
+
+
+                </tbody>
+
+            </table>
+
+        </div>
 
     </div>
 

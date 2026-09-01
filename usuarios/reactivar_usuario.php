@@ -77,34 +77,13 @@ if (
 
 
 /* =========================================
-   NO DESACTIVAR SESIÓN ACTUAL
-========================================= */
-
-if (
-    $id_usuario ===
-    (int) $_SESSION["id_usuario"]
-) {
-
-    header(
-        "Location: usuarios.php?tipo=advertencia&mensaje=" .
-        urlencode(
-            "No puede desactivar el usuario que tiene la sesión iniciada."
-        )
-    );
-
-    exit();
-}
-
-
-/* =========================================
-   CONSULTAR USUARIO
+   BUSCAR USUARIO
 ========================================= */
 
 $sqlUsuario = "
     SELECT
         id_usuario,
         usuario,
-        rol,
         estado
     FROM usuarios
     WHERE id_usuario = ?
@@ -121,7 +100,7 @@ $stmtUsuario = mysqli_prepare(
 if (!$stmtUsuario) {
 
     error_log(
-        "Error preparando consulta de usuario: " .
+        "Error preparando consulta para reactivar usuario: " .
         mysqli_error($conexion)
     );
 
@@ -150,7 +129,7 @@ if (
 ) {
 
     error_log(
-        "Error consultando usuario: " .
+        "Error consultando usuario para reactivación: " .
         mysqli_stmt_error($stmtUsuario)
     );
 
@@ -187,7 +166,7 @@ mysqli_stmt_close(
 
 
 /* =========================================
-   VERIFICAR EXISTENCIA
+   VALIDAR EXISTENCIA
 ========================================= */
 
 if (!$usuarioDatos) {
@@ -204,17 +183,17 @@ if (!$usuarioDatos) {
 
 
 /* =========================================
-   VERIFICAR ESTADO
+   VERIFICAR SI YA ESTÁ ACTIVO
 ========================================= */
 
 if (
-    $usuarioDatos["estado"] === "Inactivo"
+    $usuarioDatos["estado"] === "Activo"
 ) {
 
     header(
         "Location: usuarios.php?tipo=advertencia&mensaje=" .
         urlencode(
-            "El usuario ya se encuentra inactivo."
+            "El usuario ya se encuentra activo."
         )
     );
 
@@ -223,102 +202,34 @@ if (
 
 
 /* =========================================
-   PROTEGER ÚLTIMO ADMINISTRADOR
+   REACTIVAR USUARIO
 ========================================= */
 
-if (
-    $usuarioDatos["rol"] ===
-    "Administrador"
-) {
-
-    $sqlAdmins = "
-        SELECT
-            COUNT(*) AS total
-        FROM usuarios
-        WHERE rol = 'Administrador'
-        AND estado = 'Activo'
-    ";
-
-
-    $resultadoAdmins =
-        mysqli_query(
-            $conexion,
-            $sqlAdmins
-        );
-
-
-    if (!$resultadoAdmins) {
-
-        error_log(
-            "Error contando administradores: " .
-            mysqli_error($conexion)
-        );
-
-        header(
-            "Location: usuarios.php?tipo=error&mensaje=" .
-            urlencode(
-                "No se pudo validar la cantidad de administradores."
-            )
-        );
-
-        exit();
-    }
-
-
-    $filaAdmins =
-        mysqli_fetch_assoc(
-            $resultadoAdmins
-        );
-
-
-    $totalAdminsActivos =
-        (int)
-        $filaAdmins["total"];
-
-
-    if ($totalAdminsActivos <= 1) {
-
-        header(
-            "Location: usuarios.php?tipo=advertencia&mensaje=" .
-            urlencode(
-                "No puede desactivar el último administrador activo del sistema."
-            )
-        );
-
-        exit();
-    }
-}
-
-
-/* =========================================
-   DESACTIVAR USUARIO
-========================================= */
-
-$sqlDesactivar = "
+$sqlReactivar = "
     UPDATE usuarios
-    SET estado = 'Inactivo'
+    SET estado = 'Activo'
     WHERE id_usuario = ?
-    AND estado = 'Activo'
+    AND estado = 'Inactivo'
 ";
 
 
-$stmtDesactivar = mysqli_prepare(
+$stmtReactivar = mysqli_prepare(
     $conexion,
-    $sqlDesactivar
+    $sqlReactivar
 );
 
 
-if (!$stmtDesactivar) {
+if (!$stmtReactivar) {
 
     error_log(
-        "Error preparando desactivación de usuario: " .
+        "Error preparando reactivación de usuario: " .
         mysqli_error($conexion)
     );
 
     header(
         "Location: usuarios.php?tipo=error&mensaje=" .
         urlencode(
-            "No se pudo desactivar el usuario."
+            "No se pudo reactivar el usuario."
         )
     );
 
@@ -327,37 +238,31 @@ if (!$stmtDesactivar) {
 
 
 mysqli_stmt_bind_param(
-    $stmtDesactivar,
+    $stmtReactivar,
     "i",
     $id_usuario
 );
 
 
-/* =========================================
-   EJECUTAR
-========================================= */
-
 if (
     !mysqli_stmt_execute(
-        $stmtDesactivar
+        $stmtReactivar
     )
 ) {
 
     error_log(
-        "Error desactivando usuario: " .
-        mysqli_stmt_error(
-            $stmtDesactivar
-        )
+        "Error reactivando usuario: " .
+        mysqli_stmt_error($stmtReactivar)
     );
 
     mysqli_stmt_close(
-        $stmtDesactivar
+        $stmtReactivar
     );
 
     header(
         "Location: usuarios.php?tipo=error&mensaje=" .
         urlencode(
-            "No se pudo desactivar el usuario."
+            "No se pudo reactivar el usuario."
         )
     );
 
@@ -371,18 +276,18 @@ if (
 
 if (
     mysqli_stmt_affected_rows(
-        $stmtDesactivar
+        $stmtReactivar
     ) !== 1
 ) {
 
     mysqli_stmt_close(
-        $stmtDesactivar
+        $stmtReactivar
     );
 
     header(
         "Location: usuarios.php?tipo=advertencia&mensaje=" .
         urlencode(
-            "El usuario no pudo ser desactivado."
+            "El usuario no pudo ser reactivado."
         )
     );
 
@@ -391,7 +296,7 @@ if (
 
 
 mysqli_stmt_close(
-    $stmtDesactivar
+    $stmtReactivar
 );
 
 
@@ -402,7 +307,7 @@ mysqli_stmt_close(
 header(
     "Location: usuarios.php?tipo=exito&mensaje=" .
     urlencode(
-        "Usuario desactivado correctamente."
+        "Usuario reactivado correctamente."
     )
 );
 
