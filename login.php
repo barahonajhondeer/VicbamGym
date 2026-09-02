@@ -1,13 +1,31 @@
 <?php
 
-session_start();
+/* =========================================
+   CONFIGURACIÓN
+========================================= */
+
+require_once("config/errores.php");
+
+if (session_status() === PHP_SESSION_NONE) {
+
+    session_set_cookie_params([
+        "lifetime" => 0,
+        "path" => "/",
+        "domain" => "",
+        "secure" => false, // Cambiar a true cuando exista HTTPS
+        "httponly" => true,
+        "samesite" => "Lax"
+    ]);
+
+    session_start();
+}
 
 require_once("config/conexion.php");
 require_once("config/csrf.php");
 
 
 /* =========================================
-   EVITAR CACHÉ DEL LOGIN
+   EVITAR CACHÉ
 ========================================= */
 
 header(
@@ -19,12 +37,17 @@ header(
     false
 );
 
-header("Pragma: no-cache");
-header("Expires: 0");
+header(
+    "Pragma: no-cache"
+);
+
+header(
+    "Expires: 0"
+);
 
 
 /* =========================================
-   SI YA HAY SESIÓN
+   SI YA EXISTE SESIÓN
 ========================================= */
 
 if (
@@ -42,28 +65,52 @@ if (
 
 
 /* =========================================
-   MENSAJE
+   VARIABLES
 ========================================= */
 
 $error = "";
+
+$usuarioIngresado = "";
+
+
+/* =========================================
+   IP DEL USUARIO
+========================================= */
+
+/*
+|--------------------------------------------------------------------------
+| Utilizamos REMOTE_ADDR.
+|--------------------------------------------------------------------------
+|
+| No usamos directamente X-Forwarded-For porque puede ser manipulado
+| si el servidor no está configurado detrás de un proxy de confianza.
+|
+*/
+
+$ipUsuario =
+    $_SERVER["REMOTE_ADDR"]
+    ?? "desconocida";
 
 
 /* =========================================
    PROCESAR LOGIN
 ========================================= */
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
+if (
+    $_SERVER["REQUEST_METHOD"] === "POST"
+) {
 
     /* =====================================
        VALIDAR CSRF
-    ====================================== */
+    ===================================== */
 
     $tokenRecibido =
-        $_POST["csrf_token"] ?? "";
+        $_POST["csrf_token"]
+        ?? "";
 
     $tokenSesion =
-        $_SESSION["csrf_token"] ?? "";
+        $_SESSION["csrf_token"]
+        ?? "";
 
 
     if (
@@ -76,295 +123,562 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     ) {
 
         $error =
-            "La solicitud no es válida.";
+            "La solicitud no es válida. "
+            . "Actualice la página e intente nuevamente.";
 
     } else {
 
-
         /* =================================
            RECIBIR DATOS
-        ================================== */
+        ================================= */
 
-        $usuario =
+        $usuarioIngresado =
             trim(
-                $_POST["usuario"] ?? ""
+                $_POST["usuario"]
+                ?? ""
             );
 
-
         $password =
-            $_POST["password"] ?? "";
+            $_POST["password"]
+            ?? "";
 
 
         /* =================================
-           VALIDAR CAMPOS
-        ================================== */
+           VALIDACIONES
+        ================================= */
 
         if (
-            $usuario === "" ||
+            $usuarioIngresado === "" ||
             $password === ""
         ) {
 
             $error =
-                "Ingrese usuario y contraseña.";
+                "Ingrese su usuario y contraseña.";
 
         } elseif (
-            mb_strlen($usuario) > 50 ||
-            strlen($password) > 100
+            mb_strlen(
+                $usuarioIngresado
+            ) > 50
         ) {
 
             $error =
-                "Usuario o contraseña incorrectos.";
+                "Credenciales incorrectas.";
+
+        } elseif (
+            strlen(
+                $password
+            ) > 100
+        ) {
+
+            $error =
+                "Credenciales incorrectas.";
 
         } else {
 
-
             /* =================================
-               BUSCAR USUARIO
-            ================================== */
+               COMPROBAR INTENTOS FALLIDOS
+            ================================= */
 
-            $sql = "
+            $sqlIntentos = "
                 SELECT
-                    id_usuario,
-                    nombre,
-                    usuario,
-                    password,
-                    rol,
-                    estado
-                FROM usuarios
-                WHERE usuario = ?
-                LIMIT 1
+                    COUNT(*) AS total
+                FROM intentos_login
+                WHERE
+                    usuario = ?
+                    AND ip = ?
+                    AND exitoso = 0
+                    AND fecha_intento >=
+                        DATE_SUB(
+                            NOW(),
+                            INTERVAL 15 MINUTE
+                        )
             ";
 
 
-            $stmt =
+            $stmtIntentos =
                 mysqli_prepare(
                     $conexion,
-                    $sql
+                    $sqlIntentos
                 );
 
 
-            if (!$stmt) {
+            if (!$stmtIntentos) {
 
                 error_log(
-                    "Error preparando login: " .
-                    mysqli_error($conexion)
+                    "Error preparando control de intentos: "
+                    . mysqli_error($conexion)
                 );
 
                 $error =
-                    "Ocurrió un error al procesar el inicio de sesión.";
+                    "No se pudo procesar el inicio de sesión.";
 
             } else {
 
-
                 mysqli_stmt_bind_param(
-                    $stmt,
-                    "s",
-                    $usuario
+                    $stmtIntentos,
+                    "ss",
+                    $usuarioIngresado,
+                    $ipUsuario
                 );
 
 
-                /* =================================
-                   EJECUTAR CONSULTA
-                ================================== */
-
                 if (
                     !mysqli_stmt_execute(
-                        $stmt
+                        $stmtIntentos
                     )
                 ) {
 
                     error_log(
-                        "Error ejecutando login: " .
-                        mysqli_stmt_error($stmt)
+                        "Error ejecutando control de intentos: "
+                        . mysqli_stmt_error(
+                            $stmtIntentos
+                        )
                     );
 
                     $error =
-                        "Ocurrió un error al procesar el inicio de sesión.";
+                        "No se pudo procesar el inicio de sesión.";
+
+                    mysqli_stmt_close(
+                        $stmtIntentos
+                    );
 
                 } else {
 
-
-                    $resultado =
+                    $resultadoIntentos =
                         mysqli_stmt_get_result(
-                            $stmt
+                            $stmtIntentos
                         );
 
 
-                    $fila =
+                    $datosIntentos =
                         mysqli_fetch_assoc(
-                            $resultado
+                            $resultadoIntentos
                         );
 
 
-                    /* =================================
-                       VALIDAR CREDENCIALES
-                    ================================== */
+                    $totalIntentos =
+                        (int)
+                        (
+                            $datosIntentos["total"]
+                            ?? 0
+                        );
+
+
+                    mysqli_stmt_close(
+                        $stmtIntentos
+                    );
+
+
+                    /* =============================
+                       USUARIO BLOQUEADO
+                    ============================= */
 
                     if (
-                        !$fila ||
-                        !password_verify(
-                            $password,
-                            $fila["password"] ?? ""
-                        )
+                        $totalIntentos >= 5
                     ) {
 
                         $error =
-                            "Usuario o contraseña incorrectos.";
-
-                    } elseif (
-                        $fila["estado"] !== "Activo"
-                    ) {
-
-                        $error =
-                            "Este usuario se encuentra inactivo.";
+                            "Demasiados intentos fallidos. "
+                            . "Intente nuevamente en 15 minutos.";
 
                     } else {
 
+                        /* =============================
+                           CONSULTAR USUARIO
+                        ============================= */
 
-                        /* =================================
-                           ACTUALIZAR HASH SI ES NECESARIO
-                        ================================== */
+                        $sqlUsuario = "
+                            SELECT
+                                id_usuario,
+                                nombre,
+                                usuario,
+                                password,
+                                rol,
+                                estado
+                            FROM usuarios
+                            WHERE usuario = ?
+                            LIMIT 1
+                        ";
 
-                        if (
-                            password_needs_rehash(
-                                $fila["password"],
-                                PASSWORD_DEFAULT
-                            )
-                        ) {
 
-                            $nuevoHash =
-                                password_hash(
-                                    $password,
-                                    PASSWORD_DEFAULT
+                        $stmtUsuario =
+                            mysqli_prepare(
+                                $conexion,
+                                $sqlUsuario
+                            );
+
+
+                        if (!$stmtUsuario) {
+
+                            error_log(
+                                "Error preparando login: "
+                                . mysqli_error(
+                                    $conexion
+                                )
+                            );
+
+                            $error =
+                                "No se pudo procesar el inicio de sesión.";
+
+                        } else {
+
+                            mysqli_stmt_bind_param(
+                                $stmtUsuario,
+                                "s",
+                                $usuarioIngresado
+                            );
+
+
+                            if (
+                                !mysqli_stmt_execute(
+                                    $stmtUsuario
+                                )
+                            ) {
+
+                                error_log(
+                                    "Error ejecutando login: "
+                                    . mysqli_stmt_error(
+                                        $stmtUsuario
+                                    )
+                                );
+
+                                $error =
+                                    "No se pudo procesar el inicio de sesión.";
+
+                                mysqli_stmt_close(
+                                    $stmtUsuario
+                                );
+
+                            } else {
+
+                                $resultadoUsuario =
+                                    mysqli_stmt_get_result(
+                                        $stmtUsuario
+                                    );
+
+
+                                $usuarioBD =
+                                    mysqli_fetch_assoc(
+                                        $resultadoUsuario
+                                    );
+
+
+                                mysqli_stmt_close(
+                                    $stmtUsuario
                                 );
 
 
-                            if ($nuevoHash !== false) {
+                                /* =============================
+                                   VALIDAR CREDENCIALES
+                                ============================= */
 
-                                $sqlHash = "
-                                    UPDATE usuarios
-                                    SET password = ?
-                                    WHERE id_usuario = ?
-                                ";
+                                $loginCorrecto =
+                                    false;
 
 
-                                $stmtHash =
-                                    mysqli_prepare(
-                                        $conexion,
-                                        $sqlHash
+                                if (
+                                    $usuarioBD &&
+                                    password_verify(
+                                        $password,
+                                        $usuarioBD["password"]
+                                    )
+                                ) {
+
+                                    $loginCorrecto =
+                                        true;
+                                }
+
+
+                                /* =============================
+                                   LOGIN CORRECTO
+                                ============================= */
+
+                                if (
+                                    $loginCorrecto &&
+                                    $usuarioBD["estado"] === "Activo"
+                                ) {
+
+                                    /* =========================
+                                       BORRAR INTENTOS FALLIDOS
+                                    ========================= */
+
+                                    $sqlLimpiar = "
+                                        DELETE FROM intentos_login
+                                        WHERE
+                                            usuario = ?
+                                            AND ip = ?
+                                    ";
+
+
+                                    $stmtLimpiar =
+                                        mysqli_prepare(
+                                            $conexion,
+                                            $sqlLimpiar
+                                        );
+
+
+                                    if ($stmtLimpiar) {
+
+                                        mysqli_stmt_bind_param(
+                                            $stmtLimpiar,
+                                            "ss",
+                                            $usuarioIngresado,
+                                            $ipUsuario
+                                        );
+
+
+                                        if (
+                                            !mysqli_stmt_execute(
+                                                $stmtLimpiar
+                                            )
+                                        ) {
+
+                                            error_log(
+                                                "No se pudieron limpiar "
+                                                . "los intentos del login: "
+                                                . mysqli_stmt_error(
+                                                    $stmtLimpiar
+                                                )
+                                            );
+                                        }
+
+
+                                        mysqli_stmt_close(
+                                            $stmtLimpiar
+                                        );
+                                        $sqlLimpiarAntiguos = "
+                                            DELETE FROM intentos_login
+                                                WHERE fecha_intento < DATE_SUB(
+                                                    NOW(),
+                                                    INTERVAL 1 DAY
+                                                )
+                                            ";
+
+                                            if (
+                                                !mysqli_query(
+                                                    $conexion,
+                                                    $sqlLimpiarAntiguos
+                                                )
+                                            ) {
+
+                                                error_log(
+                                                    "No se pudieron limpiar intentos antiguos: " .
+                                                    mysqli_error($conexion)
+                                                );
+                                            }
+                                    }
+
+
+                                    /* =========================
+                                       REGENERAR SESIÓN
+                                    ========================= */
+
+                                    session_regenerate_id(
+                                        true
                                     );
 
 
-                                if ($stmtHash) {
+                                    /* =========================
+                                       CREAR SESIÓN
+                                    ========================= */
 
-                                    $idActualizar =
+                                    $_SESSION["id_usuario"] =
                                         (int)
-                                        $fila["id_usuario"];
+                                        $usuarioBD["id_usuario"];
 
 
-                                    mysqli_stmt_bind_param(
-                                        $stmtHash,
-                                        "si",
-                                        $nuevoHash,
-                                        $idActualizar
-                                    );
+                                    $_SESSION["nombre"] =
+                                        $usuarioBD["nombre"];
 
+
+                                    $_SESSION["usuario"] =
+                                        $usuarioBD["usuario"];
+
+
+                                    $_SESSION["rol"] =
+                                        $usuarioBD["rol"];
+
+
+                                    $_SESSION["ultima_actividad"] =
+                                        time();
+
+
+                                    $_SESSION["ultima_regeneracion"] =
+                                        time();
+
+
+                                    /* =========================
+                                       ACTUALIZAR HASH SI HACE FALTA
+                                    ========================= */
 
                                     if (
-                                        !mysqli_stmt_execute(
-                                            $stmtHash
+                                        password_needs_rehash(
+                                            $usuarioBD["password"],
+                                            PASSWORD_DEFAULT
                                         )
                                     ) {
 
-                                        error_log(
-                                            "No se pudo actualizar el hash del usuario ID " .
-                                            $idActualizar
+                                        $nuevoHash =
+                                            password_hash(
+                                                $password,
+                                                PASSWORD_DEFAULT
+                                            );
+
+
+                                        $sqlRehash = "
+                                            UPDATE usuarios
+                                            SET password = ?
+                                            WHERE id_usuario = ?
+                                        ";
+
+
+                                        $stmtRehash =
+                                            mysqli_prepare(
+                                                $conexion,
+                                                $sqlRehash
+                                            );
+
+
+                                        if ($stmtRehash) {
+
+                                            mysqli_stmt_bind_param(
+                                                $stmtRehash,
+                                                "si",
+                                                $nuevoHash,
+                                                $usuarioBD[
+                                                    "id_usuario"
+                                                ]
+                                            );
+
+
+                                            if (
+                                                !mysqli_stmt_execute(
+                                                    $stmtRehash
+                                                )
+                                            ) {
+
+                                                error_log(
+                                                    "No se pudo actualizar "
+                                                    . "el hash del usuario: "
+                                                    . mysqli_stmt_error(
+                                                        $stmtRehash
+                                                    )
+                                                );
+                                            }
+
+
+                                            mysqli_stmt_close(
+                                                $stmtRehash
+                                            );
+                                        }
+                                    }
+
+
+                                    /* =========================
+                                       NUEVO TOKEN CSRF
+                                    ========================= */
+
+                                    $_SESSION["csrf_token"] =
+                                        bin2hex(
+                                            random_bytes(32)
+                                        );
+
+
+                                    /* =========================
+                                       REDIRECCIONAR
+                                    ========================= */
+
+                                    header(
+                                        "Location: /VicbamGym/dashboard.php"
+                                    );
+
+                                    exit();
+
+                                } else {
+
+                                    /* =========================
+                                       REGISTRAR INTENTO FALLIDO
+                                    ========================= */
+
+                                    $sqlRegistrarIntento = "
+                                        INSERT INTO intentos_login
+                                        (
+                                            usuario,
+                                            ip,
+                                            exitoso
+                                        )
+                                        VALUES
+                                        (
+                                            ?,
+                                            ?,
+                                            0
+                                        )
+                                    ";
+
+
+                                    $stmtRegistrar =
+                                        mysqli_prepare(
+                                            $conexion,
+                                            $sqlRegistrarIntento
+                                        );
+
+
+                                    if ($stmtRegistrar) {
+
+                                        mysqli_stmt_bind_param(
+                                            $stmtRegistrar,
+                                            "ss",
+                                            $usuarioIngresado,
+                                            $ipUsuario
+                                        );
+
+
+                                        if (
+                                            !mysqli_stmt_execute(
+                                                $stmtRegistrar
+                                            )
+                                        ) {
+
+                                            error_log(
+                                                "Error registrando intento "
+                                                . "fallido de login: "
+                                                . mysqli_stmt_error(
+                                                    $stmtRegistrar
+                                                )
+                                            );
+                                        }
+
+
+                                        mysqli_stmt_close(
+                                            $stmtRegistrar
                                         );
                                     }
 
 
-                                    mysqli_stmt_close(
-                                        $stmtHash
-                                    );
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | MENSAJE GENÉRICO
+                                    |--------------------------------------------------------------------------
+                                    |
+                                    | No indicamos si falló el usuario,
+                                    | la contraseña o si la cuenta está inactiva.
+                                    |
+                                    */
+
+                                    $error =
+                                        "Usuario o contraseña incorrectos.";
                                 }
                             }
                         }
-
-
-                        /* =================================
-                           LOGIN CORRECTO
-                        ================================== */
-
-                        session_regenerate_id(
-                            true
-                        );
-
-
-                        $_SESSION["id_usuario"] =
-                            (int)
-                            $fila["id_usuario"];
-
-
-                        $_SESSION["nombre"] =
-                            $fila["nombre"] ?? "";
-
-
-                        $_SESSION["usuario"] =
-                            $fila["usuario"];
-
-
-                        $_SESSION["rol"] =
-                            $fila["rol"];
-
-
-                        $_SESSION["ultima_actividad"] =
-                            time();
-
-
-                        $_SESSION["ultima_regeneracion"] =
-                            time();
-
-
-                        /* =================================
-                           RENOVAR TOKEN CSRF
-                        ================================== */
-
-                        $_SESSION["csrf_token"] =
-                            bin2hex(
-                                random_bytes(32)
-                            );
-
-
-                        /* =================================
-                           REDIRECCIÓN
-                        ================================== */
-
-                        mysqli_stmt_close(
-                            $stmt
-                        );
-
-
-                        header(
-                            "Location: /VicbamGym/dashboard.php"
-                        );
-
-                        exit();
                     }
                 }
-
-
-                mysqli_stmt_close(
-                    $stmt
-                );
             }
         }
     }
 }
 
 ?>
-
 <!DOCTYPE html>
-
 <html lang="es">
 
 <head>
@@ -389,144 +703,103 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <body class="login-body">
 
+    <div class="login-container">
 
-<div class="login-container">
+        <div class="login-card">
 
+            <h1>
+                VICBAMGYM
+            </h1>
 
-    <div class="login-card">
-
-
-        <h1>
-            VICBAMGYM
-        </h1>
-
-
-        <h2>
-            Iniciar sesión
-        </h2>
+            <p>
+                Iniciar sesión
+            </p>
 
 
-        <?php
+            <?php if ($error !== "") { ?>
 
-        if ($error !== "") {
+                <div class="mensaje-error">
 
-        ?>
+                    <?php
+                    echo htmlspecialchars(
+                        $error,
+                        ENT_QUOTES,
+                        "UTF-8"
+                    );
+                    ?>
 
-            <div class="mensaje-error">
+                </div>
 
-                <?php
-
-                echo htmlspecialchars(
-                    $error,
-                    ENT_QUOTES,
-                    "UTF-8"
-                );
-
-                ?>
-
-            </div>
-
-        <?php
-
-        }
-
-        ?>
+            <?php } ?>
 
 
-        <form
-            action=""
-            method="POST"
-            autocomplete="off"
-        >
-
-
-            <?php
-            echo csrf_field();
-            ?>
-
-
-            <!-- USUARIO -->
-
-            <div class="form-group">
-
-                <label for="usuario">
-                    Usuario
-                </label>
-
-
-                <input
-                    type="text"
-                    name="usuario"
-                    id="usuario"
-
-                    minlength="4"
-                    maxlength="50"
-
-                    autocomplete="username"
-                    required
-                    autofocus
-
-                    value="<?php
-
-                        echo isset(
-                            $_POST["usuario"]
-                        )
-                            ? htmlspecialchars(
-                                $_POST["usuario"],
-                                ENT_QUOTES,
-                                "UTF-8"
-                            )
-                            : "";
-
-                    ?>"
-                >
-
-            </div>
-
-
-            <!-- CONTRASEÑA -->
-
-            <div class="form-group">
-
-                <label for="password">
-                    Contraseña
-                </label>
-
-
-                <input
-                    type="password"
-                    name="password"
-                    id="password"
-
-                    maxlength="100"
-
-                    autocomplete="current-password"
-                    required
-                >
-
-            </div>
-
-
-            <!-- BOTÓN -->
-
-            <button
-                type="submit"
-                class="btn-guardar"
+            <form
+                method="POST"
+                action="login.php"
+                autocomplete="on"
             >
 
-                Ingresar
+                <?php
+                echo csrf_field();
+                ?>
 
-            </button>
+
+                <div class="form-group">
+
+                    <label for="usuario">
+                        Usuario
+                    </label>
+
+                    <input
+                        type="text"
+                        id="usuario"
+                        name="usuario"
+                        value="<?php
+                            echo htmlspecialchars(
+                                $usuarioIngresado,
+                                ENT_QUOTES,
+                                "UTF-8"
+                            );
+                        ?>"
+                        minlength="4"
+                        maxlength="50"
+                        autocomplete="username"
+                        required
+                    >
+
+                </div>
 
 
-        </form>
+                <div class="form-group">
 
+                    <label for="password">
+                        Contraseña
+                    </label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        maxlength="100"
+                        autocomplete="current-password"
+                        required
+                    >
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="btn-login"
+                >
+                    Ingresar
+                </button>
+
+            </form>
+
+        </div>
 
     </div>
-
-
-</div>
-
 
 </body>
 
